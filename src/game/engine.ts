@@ -100,7 +100,7 @@ function styleEdge(style: Playstyle, oppUtr: number, myUtr: number, surface: str
   return e;
 }
 
-function playSet(pGame: number) {
+function playSet(pGame: number): [number, number] {
   let a = 0;
   let b = 0;
   while (true) {
@@ -127,7 +127,7 @@ export function simulateMatch(
   const p = 1 / (1 + Math.pow(10, (oppUtr - eff) / 2.2));
   const pGame = clamp(0.5 + (p - 0.5) * 0.62, 0.12, 0.88);
 
-  const sets: number[][] = [];
+  const sets: [number, number][] = [];
   let me = 0;
   let them = 0;
   while (me < 2 && them < 2) {
@@ -406,7 +406,7 @@ export function listTournaments(s: GameState): TournamentOffer[] {
         prize: 0,
         selectionPoints: false,
         doubles: t.points >= 100,
-        surface: SURFACES[i % SURFACES.length],
+        surface: SURFACES[i % SURFACES.length]!,
       });
     });
   }
@@ -482,7 +482,7 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
     for (let i = 0; i < names.length; i++) {
       const step = i / Math.max(1, names.length - 1);
       const oppUtr = clamp(offer.fieldUtr - 1.0 + step * 2.6 + rnd(-0.4, 0.4), 1, 16.5);
-      const m = simulateMatch(s, names[i], randomName(), oppUtr, offer.surface);
+      const m = simulateMatch(s, names[i]!, randomName(), oppUtr, offer.surface);
       matches.push(m);
       if (!m.won) break;
       roundsWon++;
@@ -558,7 +558,7 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
       const p = 1 / (1 + Math.pow(10, (oppUtr - teamUtr) / 2.4));
       const won = Math.random() < p;
       dm.push({
-        round: dNames[i],
+        round: dNames[i]!,
         opponent: `${randomName()} / ${randomName()}`,
         oppUtr: r2(oppUtr),
         score: won ? "6-4, 7-5" : "4-6, 5-7",
@@ -582,7 +582,7 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
     }
     run.doubles = {
       partner: s.partner.name,
-      result: champs ? "CHAMPIONS" : `Lost in ${dm[dm.length - 1].round}`,
+      result: champs ? "CHAMPIONS" : `Lost in ${dm[dm.length - 1]!.round}`,
       matches: dm,
     };
   }
@@ -675,7 +675,7 @@ export function nextWeek(
   s.fatigue = clamp(s.fatigue - rest + alloc.fitness * 0.9 + alloc.tennis * 0.7, 0, 100);
 
   if (s.age < 10 && Math.random() < 0.75) {
-    pushLog(s, CHILD_LOGS[Math.floor(Math.random() * CHILD_LOGS.length)], "info");
+    pushLog(s, CHILD_LOGS[Math.floor(Math.random() * CHILD_LOGS.length)]!, "info");
     s.attrs.tennis = clamp(s.attrs.tennis + 0.2, 0, 100);
     s.utr = r2(clamp(s.utr + 0.012, 1, 16.5));
   }
@@ -807,7 +807,7 @@ export function acceptPartner(s: GameState, name: string) {
 export function createGame(name: string, hand: Hand, playstyle: Playstyle): GameState {
   const wealth: Wealth = (["Working Class", "Middle Class", "Affluent"] as Wealth[])[
     Math.floor(Math.random() * 3)
-  ];
+  ]!;
   const s: GameState = {
     ontarioPool: buildOntarioPool(),
     atpPool: [],
