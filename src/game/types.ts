@@ -82,7 +82,16 @@ export interface TournamentOffer {
   surface: string;
 }
 
+export interface AIPlayer {
+  name: string;
+  points: number;
+  utr: number;
+  selection?: number;
+}
+
 export interface GameState {
+  ontarioPool: AIPlayer[];
+  atpPool: AIPlayer[];
   name: string;
   hand: Hand;
   playstyle: Playstyle;
