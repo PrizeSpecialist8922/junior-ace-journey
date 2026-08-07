@@ -654,16 +654,16 @@ export function nextWeek(
   const tired = 1 - s.fatigue / 220;
   const youth = s.age < 20 ? 1 : Math.max(0.35, 1 - (s.age - 20) * 0.06);
   // diminishing returns: the closer to the cap, the slower the growth
-  const dim = (v: number) => Math.pow(1 - v / 100, 1.35);
-  s.attrs.tennis = clamp(s.attrs.tennis + alloc.tennis * 0.3 * cm * tired * youth * dim(s.attrs.tennis), 0, 100);
-  s.attrs.fitness = clamp(s.attrs.fitness + alloc.fitness * 0.32 * fm * tired * youth * dim(s.attrs.fitness), 0, 100);
-  s.attrs.mental = clamp(s.attrs.mental + (alloc.study * 0.08 + 0.2) * pm * dim(s.attrs.mental), 0, 100);
-  s.attrs.study = clamp(s.attrs.study + alloc.study * 0.35 * dim(s.attrs.study), 0, 100);
+  const dim = (v: number) => Math.pow(1 - v / 100, 1.6);
+  s.attrs.tennis = clamp(s.attrs.tennis + alloc.tennis * 0.075 * cm * tired * youth * dim(s.attrs.tennis), 0, 100);
+  s.attrs.fitness = clamp(s.attrs.fitness + alloc.fitness * 0.08 * fm * tired * youth * dim(s.attrs.fitness), 0, 100);
+  s.attrs.mental = clamp(s.attrs.mental + (alloc.study * 0.03 + 0.05) * pm * dim(s.attrs.mental), 0, 100);
+  s.attrs.study = clamp(s.attrs.study + alloc.study * 0.12 * dim(s.attrs.study), 0, 100);
   // UTR ceiling from raw ability: training alone cannot make you a tour player
   const ceiling = 1 + (s.attrs.tennis * 0.09 + s.attrs.fitness * 0.035 + s.attrs.mental * 0.025);
   const headroom = Math.max(0, ceiling - s.utr);
   s.utr = r2(
-    clamp(s.utr + Math.min(headroom, alloc.tennis * 0.009 * cm + alloc.fitness * 0.003 * fm), 1, 16.5),
+    clamp(s.utr + Math.min(headroom, alloc.tennis * 0.0045 * cm + alloc.fitness * 0.0015 * fm), 1, 16.5),
   );
 
   if (s.phase === "college") {
