@@ -27,6 +27,12 @@ export const r2 = (v: number) => Math.round(v * 100) / 100;
 
 export const absWeek = (s: { age: number; week: number }) => (s.age - 4) * 52 + s.week;
 
+/** Physical-development soft cap: juniors cannot rate like grown pros. */
+export function utrCeiling(s: { age: number; phase: string }) {
+  if (s.phase !== "junior") return 16.5;
+  return clamp(1.5 + Math.max(0, s.age - 5) * 1.05, 1.5, 15.5);
+}
+
 export function ageBracket(age: number) {
   if (age <= 11) return "U12";
   if (age <= 13) return "U14";
@@ -145,7 +151,7 @@ export function simulateMatch(
   const expected = 1 / (1 + Math.pow(10, (oppUtr - s.utr) / 3));
   const actual = gw / Math.max(1, gw + gl);
   const weight = clamp(1 - Math.abs(oppUtr - s.utr) / 6, 0.25, 1);
-  s.utr = r2(clamp(s.utr + 0.42 * (actual - expected) * weight, 1, 16.5));
+  s.utr = r2(clamp(s.utr + 0.42 * (actual - expected) * weight, 1, utrCeiling(s) + 0.5));
   s.gamesWon += gw;
   s.gamesLost += gl;
   s.fatigue = clamp(s.fatigue + 5 + sets.length * 2, 0, 100);
@@ -661,7 +667,7 @@ export function nextWeek(
   s.attrs.study = clamp(s.attrs.study + alloc.study * 0.12 * dim(s.attrs.study), 0, 100);
   // UTR ceiling from raw ability: training alone cannot make you a tour player
   const ceiling = 1 + (s.attrs.tennis * 0.09 + s.attrs.fitness * 0.035 + s.attrs.mental * 0.025);
-  const headroom = Math.max(0, ceiling - s.utr);
+  const headroom = Math.max(0, Math.min(ceiling, utrCeiling(s)) - s.utr);
   s.utr = r2(
     clamp(s.utr + Math.min(headroom, alloc.tennis * 0.0045 * cm + alloc.fitness * 0.0015 * fm), 1, 16.5),
   );
@@ -685,7 +691,7 @@ export function nextWeek(
   if (s.age < 10 && Math.random() < 0.75) {
     pushLog(s, CHILD_LOGS[Math.floor(Math.random() * CHILD_LOGS.length)]!, "info");
     s.attrs.tennis = clamp(s.attrs.tennis + 0.2, 0, 100);
-    s.utr = r2(clamp(s.utr + 0.012, 1, 16.5));
+    s.utr = r2(clamp(s.utr + 0.008, 1, utrCeiling(s)));
   }
 
   evolvePool(s.ontarioPool);
