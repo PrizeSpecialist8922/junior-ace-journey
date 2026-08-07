@@ -8,11 +8,11 @@ export function Panel({
   children,
   className,
 }: {
-  title?: string;
-  subtitle?: string;
+  title?: string | undefined;
+  subtitle?: string | undefined;
   right?: ReactNode;
   children: ReactNode;
-  className?: string;
+  className?: string | undefined;
 }) {
   return (
     <section className={cn("panel p-5", className)}>
