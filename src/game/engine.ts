@@ -209,11 +209,25 @@ export function simulateMatch(
 
 /* ----------------------------- tournament list ---------------------------- */
 
-function surfaceForWeek(week: number) {
-  if (week <= 14 || week >= 44) return "Indoor Hard";
-  if (week <= 24) return "Clay";
-  if (week <= 30) return "Grass";
-  return "Hard";
+function travelCost(venue: Venue): number {
+  const base: Record<Venue["travelCostTier"], number> = { 1: 0, 2: 180, 3: 900 };
+  return base[venue.travelCostTier];
+}
+
+function eventDeadline(eventWeek: number): number {
+  // entry closes 2 weeks before the event
+  return Math.max(1, eventWeek - 2);
+}
+
+function baseOffer(partial: Omit<TournamentOffer, "venue" | "deadlineWeek" | "travelCost" | "committed">, week: number): TournamentOffer {
+  const venue = venueForSurface(partial.surface);
+  return {
+    ...partial,
+    venue,
+    deadlineWeek: eventDeadline(week),
+    travelCost: travelCost(venue),
+    committed: false,
+  };
 }
 
 export function tierUnlocks(s: GameState) {
