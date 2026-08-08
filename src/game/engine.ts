@@ -762,6 +762,7 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
     s.careerPrize += prize;
   }
 
+  const bracket = offer.level > 0 && offer.id !== "l1" && offer.id !== "college-dual" ? buildBracket(offer.drawSize, matches, s.name) : undefined;
   const run: TournamentRun = {
     id: `${offer.id}-${now}`,
     name: offer.name,
@@ -775,7 +776,7 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
     surface: offer.surface,
     venue: offer.venue,
     conditions,
-    bracket: offer.level > 0 && offer.id !== "l1" && offer.id !== "college-dual" ? buildBracket(offer.drawSize, matches, s.name) : undefined,
+    ...(bracket ? { bracket } : {}),
   };
 
   // doubles
