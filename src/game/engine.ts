@@ -610,6 +610,55 @@ function resultCode(drawSize: number, roundsWon: number) {
   return (["F", "SF", "QF", "R16", "R32", "R64", "R128"] as const)[left - 1] ?? "R128";
 }
 
+function buildBracket(drawSize: number, matches: MatchResult[], playerName: string): BracketNode {
+  const names = roundNames(drawSize);
+  // Build a simple binary tree where the player's path is on the left side of each node they win
+  function node(roundIndex: number, matchIndex: number): BracketNode {
+    const round = names[roundIndex] ?? "Final";
+    const m = matches[roundIndex];
+    if (!m) {
+      // filler opponent for unplayed rounds
+      return { round };
+    }
+    const children: [BracketNode, BracketNode] = [
+      { round: names[roundIndex - 1] ?? "", opponent: m.opponent, oppUtr: m.oppUtr, score: m.score, won: m.won },
+      { round: names[roundIndex - 1] ?? "", opponent: randomName() },
+    ];
+    return {
+      round,
+      opponent: m.opponent,
+      oppUtr: m.oppUtr,
+      score: m.score,
+      won: m.won,
+      children,
+    };
+  }
+  // Simpler: build from the deepest played round outward
+  let deepest = matches.length - 1;
+  while (deepest >= 0 && !matches[deepest]) deepest--;
+  if (deepest < 0) return { round: names[0] ?? "Final" };
+
+  let root: BracketNode = {
+    round: matches[deepest]!.round,
+    opponent: matches[deepest]!.opponent,
+    oppUtr: matches[deepest]!.oppUtr,
+    score: matches[deepest]!.score,
+    won: matches[deepest]!.won,
+  };
+  for (let i = deepest - 1; i >= 0; i--) {
+    const m = matches[i]!;
+    root = {
+      round: m.round,
+      opponent: m.opponent,
+      oppUtr: m.oppUtr,
+      score: m.score,
+      won: m.won,
+      children: [root, { round: m.round, opponent: randomName() }],
+    };
+  }
+  return root;
+}
+
 export function playTournament(s: GameState, offer: TournamentOffer): TournamentRun {
   const matches: MatchResult[] = [];
   const log = (t: string, tone = "info") => pushLog(s, t, tone);
