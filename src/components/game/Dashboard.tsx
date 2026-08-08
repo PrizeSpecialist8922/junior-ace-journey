@@ -12,9 +12,24 @@ import {
   weeklyStaffCost,
 } from "@/game/engine";
 import { OTA_LEVELS } from "@/game/data";
-import type { GameState } from "@/game/types";
+import type { GameState, Surface } from "@/game/types";
 import { ActionButton, Bar, Chip, Panel, Stat } from "./ui";
 import { cn } from "@/lib/utils";
+
+const SURFACES: Surface[] = ["Indoor Hard", "Hard", "Clay", "Grass"];
+
+function surfaceEmoji(surface: Surface) {
+  switch (surface) {
+    case "Indoor Hard":
+      return "🏢";
+    case "Hard":
+      return "🧱";
+    case "Clay":
+      return "🟠";
+    case "Grass":
+      return "🌿";
+  }
+}
 
 export function Dashboard({
   s,
