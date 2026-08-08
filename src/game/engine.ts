@@ -8,16 +8,23 @@ import {
   SURFACES,
   WEALTH_ALLOWANCE,
   randomName,
+  surfaceForWeek,
+  venueForSurface,
+  venueById,
 } from "./data";
 import type {
   AIPlayer,
+  BracketNode,
+  Conditions,
   GameState,
   Hand,
   MatchResult,
   Playstyle,
   PointEntry,
+  Surface,
   TournamentOffer,
   TournamentRun,
+  Venue,
   Wealth,
 } from "./types";
 
