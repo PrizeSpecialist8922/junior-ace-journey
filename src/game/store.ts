@@ -7,9 +7,26 @@ function migrate(state: GameState): GameState {
   if (!state.surfaceForm) {
     state.surfaceForm = { "Indoor Hard": 50, Hard: 50, Clay: 50, Grass: 50 };
   }
-  if (!state.committedEvents) {
-    state.committedEvents = [];
-  }
+  state.sponsor ??= null;
+  state.sponsorReputation ??= 20;
+  state.racquet ??= "Vertex Tour";
+  state.stringTension ??= "Medium";
+  state.history ??= [];
+  state.yearReview ??= null;
+  state.rivals ??= [];
+  state.nationalTeam ??= { active: false, caps: 0, medals: 0, history: [], lastCallupSeason: 0 };
+  state.college ??= {
+    school: null,
+    conference: null,
+    seasonsUsed: 0,
+    redshirted: false,
+    redshirtThisSeason: false,
+    teamWins: 0,
+    teamLosses: 0,
+    individualWins: 0,
+    individualLosses: 0,
+    conferenceChampion: false,
+  };
   // ensure each run has surface/venue for old saves
   for (const run of state.runs) {
     if (!run.surface) run.surface = "Indoor Hard";

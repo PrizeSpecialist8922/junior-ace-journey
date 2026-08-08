@@ -8,6 +8,8 @@ import {
   goPro,
   ontarioRank,
   selectionRank,
+  recruitingSchools,
+  setRedshirt,
   tierUnlocks,
   weeklyStaffCost,
 } from "@/game/engine";
@@ -75,20 +77,29 @@ export function Dashboard({
           className="border-emerald-hi/40"
         >
           <div className="grid gap-3 sm:grid-cols-4">
-            {collegeOptions(s.utr).map((c) => (
-              <div key={c.div} className="rounded-lg border border-border bg-secondary p-3">
-                <p className="text-sm font-semibold">NCAA {c.div}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">{c.range}</p>
-                <ActionButton
-                  className="mt-3 w-full"
-                  variant={c.ok ? "solid" : "ghost"}
-                  disabled={!c.ok}
-                  onClick={() => update((d) => chooseCollege(d, c.div))}
-                >
-                  {c.ok ? "Accept" : "Not eligible"}
-                </ActionButton>
-              </div>
-            ))}
+            {recruitingSchools(s.utr).map((school) => {
+              const c = {
+                div: school.division,
+                ok: true,
+                range: `${school.conference} · Strength ${school.strength}`,
+              };
+              return (
+                <div key={school.name} className="rounded-lg border border-border bg-secondary p-3">
+                  <p className="text-sm font-semibold">
+                    {school.name} · {c.div}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">{c.range}</p>
+                  <ActionButton
+                    className="mt-3 w-full"
+                    variant={c.ok ? "solid" : "ghost"}
+                    disabled={!c.ok}
+                    onClick={() => update((d) => chooseCollege(d, c.div, school.name))}
+                  >
+                    {c.ok ? "Accept" : "Not eligible"}
+                  </ActionButton>
+                </div>
+              );
+            })}
             <div className="rounded-lg border border-border bg-secondary p-3">
               <p className="text-sm font-semibold">Turn Professional</p>
               <p className="mt-1 text-[11px] text-muted-foreground">
@@ -99,6 +110,35 @@ export function Dashboard({
               </ActionButton>
             </div>
           </div>
+        </Panel>
+      )}
+
+      {s.yearReview && (
+        <Panel
+          title={`Season ${s.yearReview.season} — Year in Review`}
+          subtitle="Your birthday marks a new chapter."
+          className="border-gold/40"
+        >
+          <div className="grid gap-3 sm:grid-cols-5">
+            <Stat label="Record" value={`${s.yearReview.wins}-${s.yearReview.losses}`} />
+            <Stat label="UTR" value={s.yearReview.utr.toFixed(2)} accent />
+            <Stat
+              label="Rogers / ATP"
+              value={`#${s.yearReview.rogersRank} / #${s.yearReview.atpRank}`}
+            />
+            <Stat label="Career Prize" value={`$${s.yearReview.prize.toLocaleString()}`} />
+            <Stat label="Titles" value={s.yearReview.titles} />
+          </div>
+          <ActionButton
+            className="mt-4"
+            onClick={() =>
+              update((d) => {
+                d.yearReview = null;
+              })
+            }
+          >
+            Dismiss
+          </ActionButton>
         </Panel>
       )}
 
@@ -115,7 +155,11 @@ export function Dashboard({
           value={atp.toLocaleString()}
           sub={s.phase === "pro" ? `ATP Rank #${atpRank(s)}` : "Turn pro to enter the ranking"}
         />
-        <Stat label="Bank Balance" value={`$${Math.round(s.bank).toLocaleString()}`} sub={`${s.wealth} • $${s.allowance}/wk allowance`} />
+        <Stat
+          label="Bank Balance"
+          value={`$${Math.round(s.bank).toLocaleString()}`}
+          sub={`${s.wealth} • $${s.allowance}/wk allowance`}
+        />
         <Stat
           label="Active Tier"
           value={<span className="text-base">{tierLabel}</span>}
@@ -171,7 +215,9 @@ export function Dashboard({
                     <span>
                       {surfaceEmoji(sf)} {sf}
                     </span>
-                    <span className="tabular-nums text-muted-foreground">{Math.round(s.surfaceForm[sf])}</span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {Math.round(s.surfaceForm[sf])}
+                    </span>
                   </div>
                   <Bar value={s.surfaceForm[sf]} max={100} tone="emerald" />
                 </div>
@@ -201,8 +247,8 @@ export function Dashboard({
           <div className="mt-4">
             <Bar value={Math.min(selRank === 999 ? 0 : 17 - Math.min(selRank, 17), 16)} max={16} />
             <p className="mt-2 text-[11px] text-muted-foreground">
-              4 Selection Series events (2 indoor, 2 outdoor) + Ontario Provincial Championships feed
-              this race.
+              4 Selection Series events (2 indoor, 2 outdoor) + Ontario Provincial Championships
+              feed this race.
             </p>
           </div>
           <div className="mt-4 grid grid-cols-4 gap-2">
@@ -211,7 +257,9 @@ export function Dashboard({
                 key={b}
                 className={cn(
                   "rounded-lg border p-2 text-center",
-                  b === bracket ? "border-emerald-hi/50 bg-emerald-hi/10" : "border-border bg-secondary",
+                  b === bracket
+                    ? "border-emerald-hi/50 bg-emerald-hi/10"
+                    : "border-border bg-secondary",
                 )}
               >
                 <p className="text-[11px] text-muted-foreground">{b}</p>
@@ -264,6 +312,57 @@ export function Dashboard({
               </p>
             </li>
           </ul>
+        </Panel>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-3">
+        <Panel
+          title="National Team"
+          subtitle={s.nationalTeam.active ? "Selected for Team Canada" : "Selection watch"}
+        >
+          <p className="text-2xl font-semibold">
+            {s.nationalTeam.active ? "🇨🇦 Active" : "Not selected"}
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {s.nationalTeam.caps} caps · {s.nationalTeam.medals} medals
+          </p>
+          {s.nationalTeam.history.slice(0, 3).map((x) => (
+            <p key={x} className="mt-1 text-[11px]">
+              {x}
+            </p>
+          ))}
+        </Panel>
+        <Panel title="Sponsor & Equipment">
+          <p className="text-sm font-semibold">{s.sponsor?.name ?? "Unsigned"}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {s.sponsor
+              ? `$${s.sponsor.weekly.toLocaleString()}/week`
+              : "Family allowance remains active"}
+          </p>
+          <p className="mt-3 text-xs">
+            {s.racquet} · {s.stringTension} tension
+          </p>
+        </Panel>
+        <Panel
+          title="College Team"
+          subtitle={
+            s.phase === "college"
+              ? `${s.college.school} · ${s.college.conference}`
+              : "Available during NCAA phase"
+          }
+        >
+          <p className="text-sm font-semibold">
+            Team {s.college.teamWins}-{s.college.teamLosses} · Individual {s.college.individualWins}
+            -{s.college.individualLosses}
+          </p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            GPA {s.gpa.toFixed(2)} · Four-season eligibility · 20-hour practice maximum
+          </p>
+          {s.phase === "college" && !s.college.redshirted && (
+            <ActionButton className="mt-3" variant="ghost" onClick={() => update(setRedshirt)}>
+              Redshirt this season
+            </ActionButton>
+          )}
         </Panel>
       </div>
 

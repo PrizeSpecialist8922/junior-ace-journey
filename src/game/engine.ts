@@ -3,6 +3,9 @@ import {
   NATIONALS_WEEK,
   PROVINCIALS_WEEK,
   PRO_TIERS,
+  NCAA_SCHOOLS,
+  RACQUETS,
+  SPONSORS,
   SELECTION_WEEKS,
   STAFF_CATALOG,
   SURFACES,
@@ -61,14 +64,14 @@ function buildOntarioPool(): AIPlayer[] {
 function buildAtpPool(): AIPlayer[] {
   return Array.from({ length: 500 }, (_, i) => ({
     name: randomName(),
-    points: Math.round(11000 * Math.exp(-i / 65) + rnd(-30, 30) + 4),
+    points: Math.round(4600 * Math.exp(-i / 58) + rnd(-18, 18) + 3),
     utr: r2(clamp(16.3 - Math.log(i + 1) * 1.05 + rnd(-0.25, 0.25), 9.5, 16.5)),
   })).sort((a, b) => b.points - a.points);
 }
 
 function evolvePool(pool: AIPlayer[]) {
   for (const p of pool) {
-    p.points = Math.max(1, Math.round(p.points * 0.985 + rnd(-6, 26)));
+    p.points = Math.max(1, Math.round(p.points * (p.points < 900 ? 0.965 : 0.978) + rnd(-18, 18)));
   }
   pool.sort((a, b) => b.points - a.points);
 }
@@ -113,7 +116,12 @@ function styleEdge(style: Playstyle, oppUtr: number, myUtr: number, surface: Sur
   return e;
 }
 
-function conditionsEdge(surfaceForm: number, conditions?: Conditions, fitness = 50, style: Playstyle = "All-Court") {
+function conditionsEdge(
+  surfaceForm: number,
+  conditions?: Conditions,
+  fitness = 50,
+  style: Playstyle = "All-Court",
+) {
   let e = (surfaceForm - 50) / 200; // +/- 0.25 at extremes
   if (!conditions) return e;
   // heat hurts low fitness; wind hurts serve-volley; humidity is neutral flavor
@@ -214,19 +222,15 @@ function travelCost(venue: Venue): number {
   return base[venue.travelCostTier];
 }
 
-function eventDeadline(eventWeek: number): number {
-  // entry closes 2 weeks before the event
-  return Math.max(1, eventWeek - 2);
-}
-
-function baseOffer(partial: Omit<TournamentOffer, "venue" | "deadlineWeek" | "travelCost" | "committed">, week: number): TournamentOffer {
+function baseOffer(
+  partial: Omit<TournamentOffer, "venue" | "travelCost">,
+  week: number,
+): TournamentOffer {
   const venue = venueForSurface(partial.surface);
   return {
     ...partial,
     venue,
-    deadlineWeek: eventDeadline(week),
     travelCost: travelCost(venue),
-    committed: false,
   };
 }
 
@@ -259,7 +263,14 @@ function venueForWeek(week: number, surface: Surface) {
 
 function juniorEventName(level: number, week: number, surface: Surface, br: string): string {
   const venue = venueForWeek(week, surface);
-  const season = week <= 14 ? "Winter Indoor" : week <= 24 ? "Spring Clay" : week <= 30 ? "Summer Grass" : "Summer/Fall";
+  const season =
+    week <= 14
+      ? "Winter Indoor"
+      : week <= 24
+        ? "Spring Clay"
+        : week <= 30
+          ? "Summer Grass"
+          : "Summer/Fall";
   if (level === 1) return `Rogers First Set Tour ${br} — ${venue.city}`;
   if (level === 2) return `Nike Transition Tour ${br} — ${venue.city}`;
   if (level === 3) return `OTA Provincial Circuit ${br} — ${venue.city}`;
@@ -277,8 +288,64 @@ export function listTournaments(s: GameState): TournamentOffer[] {
   const surface = surfaceForWeek(s.week);
   const u = tierUnlocks(s);
   const br = ageBracket(s.age);
-  const now = absWeek(s);
-
+  const teamEligible =
+    s.phase === "junior"
+      ? s.age >= 12 && (ontarioRank(s) <= 20 || s.utr >= 8)
+      : s.phase === "pro" && atpRank(s) <= 250;
+  if (s.week === 36 && teamEligible) {
+    const venue = venueById("national-tennis-centre");
+    return [
+      baseOffer(
+        {
+          id: "team-canada",
+          name:
+            s.phase === "junior"
+              ? "Junior Davis / Billie Jean King Cup"
+              : "Davis / Billie Jean King Cup",
+          tier: "Team Canada",
+          level: 6.5,
+          requirement: "Selected to represent Canada",
+          eligible: true,
+          drawSize: 8,
+          fieldUtr: s.phase === "pro" ? 14 : 10,
+          points: 0,
+          prize: s.phase === "pro" ? 25000 : 0,
+          selectionPoints: false,
+          doubles: false,
+          surface: "Hard",
+        },
+        s.week,
+      ),
+    ];
+  }
+  if (
+    s.phase === "pro" &&
+    s.season % 4 === 0 &&
+    s.week === 30 &&
+    (atpRank(s) <= 56 || (s.season + s.age) % 5 === 0)
+  ) {
+    const venue = venueById("sobeys-stadium");
+    return [
+      baseOffer(
+        {
+          id: "olympics",
+          name: "Olympic Tennis — Team Canada",
+          tier: "Olympic Games",
+          level: 7,
+          requirement: atpRank(s) <= 56 ? "ATP Top 56 qualified" : "Continental wildcard",
+          eligible: true,
+          drawSize: 64,
+          fieldUtr: 14.8,
+          points: 0,
+          prize: 0,
+          selectionPoints: false,
+          doubles: false,
+          surface: "Hard",
+        },
+        s.week,
+      ),
+    ];
+  }
   if (s.phase === "pro") {
     const rank = atpRank(s);
     PRO_TIERS.forEach((t, i) => {
@@ -291,10 +358,20 @@ export function listTournaments(s: GameState): TournamentOffer[] {
             tier: t.name,
             level: 6,
             requirement:
-              t.name === "Grand Slam"
-                ? "Direct acceptance: ATP Top 104"
-                : `ATP rank ${t.rank} or better`,
-            eligible: rank <= t.rank,
+              rank <= t.rank
+                ? `Direct entry (ATP #${rank})`
+                : i >= 2 && i <= 4
+                  ? "Qualifying available — win 2 matches"
+                  : `ATP rank ${t.rank} or better`,
+            eligible: rank <= t.rank || (i >= 2 && i <= 4),
+            entry:
+              rank <= t.rank
+                ? "direct"
+                : (s.season + s.week + i) % 7 === 0 &&
+                    ["sobeys-stadium", "national-tennis-centre"].includes(venue.id)
+                  ? "wildcard"
+                  : "qualifying",
+            qualifyingRounds: rank <= t.rank ? 0 : 2,
             drawSize: t.drawSize,
             fieldUtr: t.utr,
             points: t.points,
@@ -316,11 +393,19 @@ export function listTournaments(s: GameState): TournamentOffer[] {
       baseOffer(
         {
           id: "college-dual",
-          name: `NCAA ${s.collegeDivision} Dual Match — ${venue.city}`,
+          name:
+            s.week === 21
+              ? `${s.collegeDivision} ${s.college.conference} Conference Championship`
+              : s.week === 22
+                ? `NCAA ${s.collegeDivision} National Championships`
+                : `${s.college.school ?? `NCAA ${s.collegeDivision}`} vs ${NCAA_SCHOOLS.filter((x) => x.division === s.collegeDivision && x.name !== s.college.school)[s.week % Math.max(1, NCAA_SCHOOLS.filter((x) => x.division === s.collegeDivision).length)]?.name ?? "Conference Rival"}`,
           tier: `NCAA ${s.collegeDivision}`,
           level: 5.5,
-          requirement: s.collegeSuspended ? "Suspended — GPA below 2.0" : "Roster member in good standing",
-          eligible: !s.collegeSuspended,
+          requirement: s.collegeSuspended
+            ? "Suspended — GPA below 2.0"
+            : "Roster member in good standing",
+          eligible:
+            !s.collegeSuspended && !s.college.redshirtThisSeason && s.week >= 8 && s.week <= 22,
           drawSize: 4,
           fieldUtr: s.collegeDivision === "D1" ? 13.2 : s.collegeDivision === "D2" ? 11.0 : 8.0,
           points: 0,
@@ -570,26 +655,20 @@ export function listTournaments(s: GameState): TournamentOffer[] {
     });
   }
 
-  // mark committed events and hide events whose deadline has passed without commitment
-  return out
-    .map((o) => ({
-      ...o,
-      committed: s.committedEvents.includes(o.id),
-      eligible: o.eligible && (s.committedEvents.includes(o.id) || now <= o.deadlineWeek),
-    }))
-    .filter((o) => s.committedEvents.includes(o.id) || now <= o.deadlineWeek || o.level === 0);
+  // Every event in the current week remains visible: entry and travel are handled when Play is pressed.
+  return out;
 }
 
 /* --------------------------- tournament execution ------------------------- */
 
 const RESULT_SHARE: Record<string, number> = {
   W: 1,
-  F: 0.6,
-  SF: 0.36,
-  QF: 0.2,
-  R16: 0.1,
-  R32: 0.045,
-  R64: 0.02,
+  F: 0.78,
+  SF: 0.52,
+  QF: 0.3,
+  R16: 0.15,
+  R32: 0.06,
+  R64: 0.025,
   RR: 0,
 };
 
@@ -597,7 +676,9 @@ function roundNames(drawSize: number) {
   const names: string[] = [];
   let n = drawSize;
   while (n > 1) {
-    names.push(n === 2 ? "Final" : n === 4 ? "Semifinal" : n === 8 ? "Quarterfinal" : `Round of ${n}`);
+    names.push(
+      n === 2 ? "Final" : n === 4 ? "Semifinal" : n === 8 ? "Quarterfinal" : `Round of ${n}`,
+    );
     n /= 2;
   }
   return names;
@@ -621,7 +702,13 @@ function buildBracket(drawSize: number, matches: MatchResult[], playerName: stri
       return { round };
     }
     const children: [BracketNode, BracketNode] = [
-      { round: names[roundIndex - 1] ?? "", opponent: m.opponent, oppUtr: m.oppUtr, score: m.score, won: m.won },
+      {
+        round: names[roundIndex - 1] ?? "",
+        opponent: m.opponent,
+        oppUtr: m.oppUtr,
+        score: m.score,
+        won: m.won,
+      },
       { round: names[roundIndex - 1] ?? "", opponent: randomName() },
     ];
     return {
@@ -704,13 +791,69 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
       });
     }
   } else {
+    if (offer.entry === "qualifying") {
+      for (let q = 1; q <= (offer.qualifyingRounds ?? 2); q++) {
+        const qm = simulateMatch(
+          s,
+          `Qualifying ${q}`,
+          randomName(),
+          clamp(offer.fieldUtr - 1.1 + q * 0.25, 1, 16.5),
+          offer.surface,
+          conditions,
+        );
+        matches.push(qm);
+        if (!qm.won) {
+          result = `Lost in Qualifying ${q}`;
+          break;
+        }
+      }
+      if (matches.some((m) => m.round.startsWith("Qualifying") && !m.won)) {
+        const run: TournamentRun = {
+          id: `${offer.id}-${absWeek(s)}`,
+          name: offer.name,
+          tier: offer.tier,
+          week: s.week,
+          age: s.age,
+          matches,
+          result,
+          points: 0,
+          prize: 0,
+          surface: offer.surface,
+          venue: offer.venue,
+          conditions,
+          entry: "qualifying",
+          projectedRank: atpRank(s),
+        };
+        s.runs.unshift(run);
+        s.playedThisWeek = true;
+        s.losses++;
+        pushLog(s, `${offer.name}: ${result}.`, "bad");
+        return run;
+      }
+      pushLog(s, `Qualified for the ${offer.name} main draw.`, "good");
+    }
     const names = roundNames(offer.drawSize);
     let roundsWon = 0;
     for (let i = 0; i < names.length; i++) {
       const step = i / Math.max(1, names.length - 1);
       const oppUtr = clamp(offer.fieldUtr - 1.0 + step * 2.6 + rnd(-0.4, 0.4), 1, 16.5);
-      const m = simulateMatch(s, names[i]!, randomName(), oppUtr, offer.surface, conditions);
+      const rival = s.rivals[(s.week + i) % s.rivals.length];
+      const useRival = rival && (s.week + i) % 3 === 0;
+      const opponent = useRival ? rival.name : randomName();
+      const m = simulateMatch(
+        s,
+        names[i]!,
+        opponent,
+        useRival ? clamp(rival.utr, 1, 16.5) : oppUtr,
+        offer.surface,
+        conditions,
+      );
       matches.push(m);
+      if (useRival) {
+        rival[m.won ? "losses" : "wins"]++;
+        rival.surfaces[offer.surface][m.won ? "losses" : "wins"]++;
+        rival.utr = r2(clamp(rival.utr + 0.01, 1, 16.5));
+      }
       if (!m.won) break;
       roundsWon++;
     }
@@ -726,7 +869,20 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
               ? "Quarterfinalist"
               : `Lost in ${code}`;
     const share = RESULT_SHARE[code] ?? 0;
-    earned = Math.round(offer.points * share);
+    const mainWins = matches.filter((m) => !m.round.startsWith("Qualifying") && m.won).length;
+    const roundAwards =
+      offer.level === 6
+        ? Array.from({ length: mainWins }, (_, i) =>
+            Math.max(1, Math.round(offer.points * [0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45][i]!)),
+          )
+        : [];
+    earned =
+      offer.level === 6
+        ? Math.max(
+            Math.round(offer.points * share),
+            roundAwards.reduce((a, b) => a + b, 0),
+          )
+        : Math.round(offer.points * share);
     prize = Math.round(offer.prize * (share === 1 ? 1 : share * 0.9));
 
     if (code === "W") {
@@ -734,13 +890,17 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
       s.trophies.push({
         title: offer.name,
         kind:
-          offer.id === "nationals"
-            ? "National"
-            : offer.level === 5
-              ? "ITF"
-              : offer.level === 6
-                ? "Pro"
-                : "OTA",
+          offer.id === "olympics"
+            ? "Olympic"
+            : offer.id === "team-canada"
+              ? "Team Canada"
+              : offer.id === "nationals"
+                ? "National"
+                : offer.level === 5
+                  ? "ITF"
+                  : offer.level === 6
+                    ? "Pro"
+                    : "OTA",
         age: s.age,
         season: s.season,
         detail: `${offer.tier} • ${offer.surface} • ${offer.venue.city}`,
@@ -762,7 +922,10 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
     s.careerPrize += prize;
   }
 
-  const bracket = offer.level > 0 && offer.id !== "l1" && offer.id !== "college-dual" ? buildBracket(offer.drawSize, matches, s.name) : undefined;
+  const bracket =
+    offer.level > 0 && offer.id !== "l1" && offer.id !== "college-dual"
+      ? buildBracket(offer.drawSize, matches, s.name)
+      : undefined;
   const run: TournamentRun = {
     id: `${offer.id}-${now}`,
     name: offer.name,
@@ -776,8 +939,19 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
     surface: offer.surface,
     venue: offer.venue,
     conditions,
+    ...(offer.entry ? { entry: offer.entry } : {}),
+    projectedRank: s.phase === "pro" ? atpRank(s) : ontarioRank(s),
     ...(bracket ? { bracket } : {}),
   };
+
+  if (offer.id === "team-canada" || offer.id === "olympics") {
+    s.nationalTeam.active = true;
+    s.nationalTeam.caps++;
+    s.nationalTeam.lastCallupSeason = s.season;
+    s.nationalTeam.history.unshift(`${offer.name} — ${result}`);
+    if (result === "CHAMPION" || result === "Runner-up" || result === "Semifinalist")
+      s.nationalTeam.medals++;
+  }
 
   // doubles
   if (offer.doubles && s.partner) {
@@ -819,11 +993,29 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
     };
   }
 
-  // remove from committed events once played
-  s.committedEvents = s.committedEvents.filter((id) => id !== offer.id);
-
   s.runs.unshift(run);
   s.playedThisWeek = true;
+  const matchWins = matches.filter((m) => m.won).length;
+  s.sponsorReputation = clamp(
+    s.sponsorReputation + matchWins * 1.5 - (matches[0]?.won ? 0 : 1),
+    0,
+    100,
+  );
+  if (s.phase === "college") {
+    const won = matchWins >= 2;
+    s.college[won ? "teamWins" : "teamLosses"]++;
+    s.college[won ? "individualWins" : "individualLosses"]++;
+    if (offer.name.includes("Championship") && won) {
+      s.college.conferenceChampion = true;
+      s.trophies.push({
+        title: offer.name,
+        kind: "College",
+        age: s.age,
+        season: s.season,
+        detail: "Conference Champion and NCAA automatic bid",
+      });
+    }
+  }
   log(
     `${offer.name}: ${result}${earned ? ` (+${earned} ranking pts)` : ""}${
       prize ? ` • $${prize.toLocaleString()} prize money` : ""
@@ -861,23 +1053,25 @@ export function weeklyStaffCost(s: GameState) {
   return s.staff.reduce((n, x) => n + x.weekly, 0);
 }
 
-export function nextWeek(
-  s: GameState,
-  alloc: { tennis: number; fitness: number; study: number },
-) {
+export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number; study: number }) {
   const now = absWeek(s);
   s.rogers = pruneExpired(s.rogers, now);
   s.atp = pruneExpired(s.atp, now);
 
   // income & expenses
-  if (s.age <= 18) s.bank += s.allowance;
+  if (!s.sponsor && s.age <= 18) s.bank += s.allowance;
+  if (s.sponsor) s.bank += s.sponsor.weekly;
   const cost = weeklyStaffCost(s);
   s.bank -= cost;
   if (s.bank < 0) {
     const dropped = s.staff.pop();
     if (dropped) {
       s.bank += dropped.weekly;
-      pushLog(s, `Could not afford ${dropped.name} (${dropped.role}) — contract terminated.`, "bad");
+      pushLog(
+        s,
+        `Could not afford ${dropped.name} (${dropped.role}) — contract terminated.`,
+        "bad",
+      );
     }
     s.bank = Math.max(0, s.bank);
   }
@@ -890,15 +1084,31 @@ export function nextWeek(
   const youth = s.age < 20 ? 1 : Math.max(0.35, 1 - (s.age - 20) * 0.06);
   // diminishing returns: the closer to the cap, the slower the growth
   const dim = (v: number) => Math.pow(1 - v / 100, 1.6);
-  s.attrs.tennis = clamp(s.attrs.tennis + alloc.tennis * 0.075 * cm * tired * youth * dim(s.attrs.tennis), 0, 100);
-  s.attrs.fitness = clamp(s.attrs.fitness + alloc.fitness * 0.08 * fm * tired * youth * dim(s.attrs.fitness), 0, 100);
-  s.attrs.mental = clamp(s.attrs.mental + (alloc.study * 0.03 + 0.05) * pm * dim(s.attrs.mental), 0, 100);
+  s.attrs.tennis = clamp(
+    s.attrs.tennis + alloc.tennis * 0.075 * cm * tired * youth * dim(s.attrs.tennis),
+    0,
+    100,
+  );
+  s.attrs.fitness = clamp(
+    s.attrs.fitness + alloc.fitness * 0.08 * fm * tired * youth * dim(s.attrs.fitness),
+    0,
+    100,
+  );
+  s.attrs.mental = clamp(
+    s.attrs.mental + (alloc.study * 0.03 + 0.05) * pm * dim(s.attrs.mental),
+    0,
+    100,
+  );
   s.attrs.study = clamp(s.attrs.study + alloc.study * 0.12 * dim(s.attrs.study), 0, 100);
   // UTR ceiling from raw ability: training alone cannot make you a tour player
   const ceiling = 1 + (s.attrs.tennis * 0.09 + s.attrs.fitness * 0.035 + s.attrs.mental * 0.025);
   const headroom = Math.max(0, Math.min(ceiling, utrCeiling(s)) - s.utr);
   s.utr = r2(
-    clamp(s.utr + Math.min(headroom, alloc.tennis * 0.0045 * cm + alloc.fitness * 0.0015 * fm), 1, 16.5),
+    clamp(
+      s.utr + Math.min(headroom, alloc.tennis * 0.0045 * cm + alloc.fitness * 0.0015 * fm),
+      1,
+      16.5,
+    ),
   );
 
   if (s.phase === "college") {
@@ -926,6 +1136,20 @@ export function nextWeek(
   evolvePool(s.ontarioPool);
   if (s.phase === "pro") evolvePool(s.atpPool);
 
+  if (s.week === 35) {
+    const eligible =
+      s.phase === "junior"
+        ? s.age >= 12 && (ontarioRank(s) <= 20 || s.utr >= 8)
+        : s.phase === "pro" && atpRank(s) <= 250;
+    if (eligible) {
+      s.nationalTeam.active = true;
+      pushLog(
+        s,
+        `You have been selected to represent Canada at the ${s.phase === "junior" ? "Junior Davis / Billie Jean King Cup" : "Davis / Billie Jean King Cup"}.`,
+        "good",
+      );
+    }
+  }
   s.playedThisWeek = false;
   s.week++;
 
@@ -942,14 +1166,37 @@ export function nextWeek(
   }
 
   if (s.week > 52) {
+    const snapshot = {
+      season: s.season,
+      age: s.age,
+      utr: s.utr,
+      rogersRank: ontarioRank(s),
+      atpRank: atpRank(s),
+      bank: Math.round(s.bank),
+      titles: s.titles,
+      wins: s.wins,
+      losses: s.losses,
+      prize: s.careerPrize,
+    };
+    s.history.push(snapshot);
+    s.yearReview = snapshot;
     s.week = 1;
     s.age++;
     s.season++;
     s.selection = {};
     s.qualifiedNationals = false;
+    s.rivals.forEach((r) => {
+      r.utr = r2(clamp(r.utr + rnd(0.2, 0.65), 1, 16.5));
+    });
+    if (s.phase === "college" && !s.college.redshirtThisSeason) s.college.seasonsUsed++;
+    s.college.redshirtThisSeason = false;
     pushLog(s, `— Season ${s.season} begins. You are now ${s.age} years old. —`, "good");
     if (s.age === 10)
-      pushLog(s, "OTA sanctioned tournaments unlocked: you may now enter the Rogers First Set Tour.", "good");
+      pushLog(
+        s,
+        "OTA sanctioned tournaments unlocked: you may now enter the Rogers First Set Tour.",
+        "good",
+      );
     if (s.age === 13)
       pushLog(s, "You turned 13 — the ITF Junior Circuit (J30-J500) is now open to you.", "good");
     if (s.age === 18 && s.phase === "junior") {
@@ -985,9 +1232,19 @@ export function collegeOptions(utr: number) {
   ];
 }
 
-export function chooseCollege(s: GameState, div: string) {
+export function recruitingSchools(utr: number) {
+  return NCAA_SCHOOLS.filter((x) => utr >= x.minUtr)
+    .sort((a, b) => b.strength - a.strength)
+    .slice(0, 12);
+}
+
+export function chooseCollege(s: GameState, div: string, school?: string) {
   s.phase = "college";
   s.collegeDivision = div;
+  const picked =
+    NCAA_SCHOOLS.find((x) => x.name === school) ?? NCAA_SCHOOLS.find((x) => x.division === div)!;
+  s.college.school = picked.name;
+  s.college.conference = picked.conference;
   s.gpa = 3.0;
   s.crossroadsPending = false;
   pushLog(s, `Signed a NCAA ${div} tennis scholarship. GPA must stay above 2.00.`, "good");
@@ -1045,23 +1302,35 @@ export function acceptPartner(s: GameState, name: string) {
   pushLog(s, `Paired up with ${p.name} (UTR ${p.utr.toFixed(2)}) for doubles.`, "good");
 }
 
-export function commitEvent(s: GameState, offer: TournamentOffer) {
-  if (s.committedEvents.includes(offer.id)) return;
-  if (s.bank < offer.travelCost) {
-    pushLog(s, `Cannot commit to ${offer.name}: travel deposit $${offer.travelCost} unavailable.`, "bad");
-    return;
-  }
-  s.bank -= offer.travelCost;
-  s.committedEvents.push(offer.id);
-  pushLog(s, `Entered ${offer.name} at ${offer.venue.name}. Travel deposit paid.`, "good");
+export function sponsorOffers(s: GameState) {
+  const rank = s.phase === "pro" ? atpRank(s) : ontarioRank(s);
+  return SPONSORS.map((deal, i) => ({
+    ...deal,
+    eligible:
+      s.sponsorReputation >= deal.minReputation &&
+      (s.utr >= [8, 10, 12, 14, 16][i]! || rank <= [10, 10, 200, 100, 50][i]!),
+  }));
 }
-
-export function withdrawEvent(s: GameState, offer: TournamentOffer) {
-  if (!s.committedEvents.includes(offer.id)) return;
-  s.committedEvents = s.committedEvents.filter((id) => id !== offer.id);
-  const refund = Math.round(offer.travelCost * 0.5);
-  s.bank += refund;
-  pushLog(s, `Withdrew from ${offer.name}. Refunded $${refund} of $${offer.travelCost}.`, "info");
+export function signSponsor(s: GameState, id: string) {
+  const deal = sponsorOffers(s).find((x) => x.id === id && x.eligible);
+  if (!deal) return;
+  s.sponsor = deal;
+  s.allowance = 0;
+  pushLog(
+    s,
+    `Signed with ${deal.name} for $${deal.weekly.toLocaleString()}/week. Family allowance has ended.`,
+    "good",
+  );
+}
+export function setEquipment(s: GameState, racquet: string, tension: "Low" | "Medium" | "High") {
+  if (RACQUETS.some((r) => r.name === racquet)) s.racquet = racquet;
+  s.stringTension = tension;
+}
+export function setRedshirt(s: GameState) {
+  if (s.phase !== "college" || s.college.redshirted) return;
+  s.college.redshirted = true;
+  s.college.redshirtThisSeason = true;
+  pushLog(s, "Redshirt season declared — competition paused and eligibility preserved.", "info");
 }
 
 /* --------------------------------- create --------------------------------- */
@@ -1108,11 +1377,45 @@ export function createGame(name: string, hand: Hand, playstyle: Playstyle): Game
     losses: 0,
     titles: 0,
     surfaceForm: { "Indoor Hard": 50, Hard: 50, Clay: 50, Grass: 50 },
-    committedEvents: [],
+    sponsor: null,
+    sponsorReputation: 20,
+    racquet: RACQUETS[2]!.name,
+    stringTension: "Medium",
+    history: [],
+    yearReview: null,
+    rivals: Array.from({ length: 5 }, () => ({
+      name: randomName(),
+      utr: r2(rnd(1, 1.8)),
+      wins: 0,
+      losses: 0,
+      surfaces: {
+        "Indoor Hard": { wins: 0, losses: 0 },
+        Hard: { wins: 0, losses: 0 },
+        Clay: { wins: 0, losses: 0 },
+        Grass: { wins: 0, losses: 0 },
+      },
+    })),
+    nationalTeam: { active: false, caps: 0, medals: 0, history: [], lastCallupSeason: 0 },
+    college: {
+      school: null,
+      conference: null,
+      seasonsUsed: 0,
+      redshirted: false,
+      redshirtThisSeason: false,
+      teamWins: 0,
+      teamLosses: 0,
+      individualWins: 0,
+      individualLosses: 0,
+      conferenceChampion: false,
+    },
   };
   pushLog(s, `${name} picks up a racquet for the first time in Ontario, Canada.`, "good");
   pushLog(s, `Family financial status: ${wealth} — $${s.allowance}/week available.`, "info");
-  pushLog(s, `${hand}-handed ${playstyle}. Registered with the Ontario Tennis Association.`, "info");
+  pushLog(
+    s,
+    `${hand}-handed ${playstyle}. Registered with the Ontario Tennis Association.`,
+    "info",
+  );
   return s;
 }
 
