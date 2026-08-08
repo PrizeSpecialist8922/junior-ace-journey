@@ -123,7 +123,7 @@ export function Tournaments({
                           {o.name}
                         </p>
                         {committed && <Chip tone="emerald">Committed</Chip>}
-                        {deadlinePassed && !committed && !o.eligible && <Chip tone="danger">Deadline passed</Chip>}
+                        {deadlinePassed && !committed && !o.eligible && <Chip tone="bad">Deadline passed</Chip>}
                       </div>
                       <p className="mt-0.5 text-[11px] text-muted-foreground">
                         {o.venue.name} · {o.venue.city} · {o.surface} · Draw of {o.drawSize} · Field UTR ~
