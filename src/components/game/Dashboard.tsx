@@ -162,6 +162,22 @@ export function Dashboard({
               </span>
             </p>
           </div>
+          <div className="mt-4 border-t border-border pt-3">
+            <p className="stat-label mb-2">Surface Form</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {SURFACES.map((sf) => (
+                <div key={sf}>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span>
+                      {surfaceEmoji(sf)} {sf}
+                    </span>
+                    <span className="tabular-nums text-muted-foreground">{Math.round(s.surfaceForm[sf])}</span>
+                  </div>
+                  <Bar value={s.surfaceForm[sf]} max={100} tone="emerald" />
+                </div>
+              ))}
+            </div>
+          </div>
         </Panel>
 
         <Panel
