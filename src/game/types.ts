@@ -1,9 +1,5 @@
 export type Hand = "Left" | "Right";
-export type Playstyle =
-  | "Serve & Volley"
-  | "Baseline Grinder"
-  | "All-Court"
-  | "Counterpuncher";
+export type Playstyle = "Serve & Volley" | "Baseline Grinder" | "All-Court" | "Counterpuncher";
 export type Wealth = "Working Class" | "Middle Class" | "Affluent";
 export type Phase = "junior" | "college" | "pro" | "retired";
 export type StaffRole = "Private Coach" | "Fitness Trainer" | "Psychologist";
@@ -44,7 +40,7 @@ export interface Partner {
 
 export interface Trophy {
   title: string;
-  kind: "OTA" | "National" | "ITF" | "College" | "Pro" | "Milestone";
+  kind: "OTA" | "National" | "ITF" | "College" | "Pro" | "Milestone" | "Team Canada" | "Olympic";
   age: number;
   season: number;
   detail?: string;
@@ -73,6 +69,8 @@ export interface TournamentRun {
   conditions?: Conditions;
   bracket?: BracketNode;
   doubles?: { partner: string; result: string; matches: MatchResult[] };
+  projectedRank?: number;
+  entry?: "direct" | "qualifying" | "wildcard";
 }
 
 export interface Attributes {
@@ -111,9 +109,55 @@ export interface TournamentOffer {
   doubles: boolean;
   surface: Surface;
   venue: Venue;
-  deadlineWeek: number; // entry deadline (absolute week)
   travelCost: number;
-  committed: boolean;
+  entry?: "direct" | "qualifying" | "wildcard";
+  qualifyingRounds?: number;
+}
+
+export interface SponsorDeal {
+  id: string;
+  name: string;
+  weekly: number;
+  requirement: string;
+  minReputation: number;
+}
+export interface SeasonSnapshot {
+  season: number;
+  age: number;
+  utr: number;
+  rogersRank: number;
+  atpRank: number;
+  bank: number;
+  titles: number;
+  wins: number;
+  losses: number;
+  prize: number;
+}
+export interface Rival {
+  name: string;
+  utr: number;
+  wins: number;
+  losses: number;
+  surfaces: Record<Surface, { wins: number; losses: number }>;
+}
+export interface NationalTeamState {
+  active: boolean;
+  caps: number;
+  medals: number;
+  history: string[];
+  lastCallupSeason: number;
+}
+export interface CollegeState {
+  school: string | null;
+  conference: string | null;
+  seasonsUsed: number;
+  redshirted: boolean;
+  redshirtThisSeason: boolean;
+  teamWins: number;
+  teamLosses: number;
+  individualWins: number;
+  individualLosses: number;
+  conferenceChampion: boolean;
 }
 
 export interface BracketNode {
@@ -170,5 +214,13 @@ export interface GameState {
   losses: number;
   titles: number;
   surfaceForm: SurfaceForm;
-  committedEvents: string[]; // ids of events the player has entered before their deadline
+  sponsor: SponsorDeal | null;
+  sponsorReputation: number;
+  racquet: string;
+  stringTension: "Low" | "Medium" | "High";
+  history: SeasonSnapshot[];
+  yearReview: SeasonSnapshot | null;
+  rivals: Rival[];
+  nationalTeam: NationalTeamState;
+  college: CollegeState;
 }

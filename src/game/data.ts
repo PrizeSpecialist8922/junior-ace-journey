@@ -189,6 +189,124 @@ export const PRO_TIERS = [
   { name: "Grand Slam", rank: 104, utr: 15.4, points: 2000, prize: 2600000, drawSize: 128 },
 ];
 
+export const SPONSORS = [
+  {
+    id: "northstar",
+    name: "NorthStar Athletics",
+    weekly: 175,
+    requirement: "UTR 8+",
+    minReputation: 20,
+  },
+  {
+    id: "baseline",
+    name: "Baseline Labs",
+    weekly: 450,
+    requirement: "UTR 10+ or Ontario Top 10",
+    minReputation: 35,
+  },
+  {
+    id: "maple",
+    name: "Maple Performance",
+    weekly: 1100,
+    requirement: "UTR 12+ or ATP Top 200",
+    minReputation: 50,
+  },
+  {
+    id: "summit",
+    name: "Summit Global",
+    weekly: 2800,
+    requirement: "UTR 14+ or ATP Top 100",
+    minReputation: 65,
+  },
+  {
+    id: "apex",
+    name: "Apex International",
+    weekly: 6500,
+    requirement: "ATP Top 50",
+    minReputation: 80,
+  },
+];
+
+export const RACQUETS = [
+  { name: "AeroForge Power", bonus: "Power: +0.18 for Serve & Volley", styles: ["Serve & Volley"] },
+  {
+    name: "TrueLine Control",
+    bonus: "Control: +0.18 for grinders and counterpunchers",
+    styles: ["Baseline Grinder", "Counterpuncher"],
+  },
+  { name: "Vertex Tour", bonus: "Balance: +0.12 for All-Court", styles: ["All-Court"] },
+  { name: "Northern Strike", bonus: "Fast-court power: +0.10 on hard courts", styles: [] },
+  { name: "Heritage 98", bonus: "Precision: +0.08 on every surface", styles: [] },
+];
+
+export const NCAA_SCHOOLS = [
+  ...[
+    "Virginia|ACC",
+    "Wake Forest|ACC",
+    "North Carolina|ACC",
+    "Duke|ACC",
+    "Ohio State|Big Ten",
+    "Michigan|Big Ten",
+    "Illinois|Big Ten",
+    "Florida|SEC",
+    "South Carolina|SEC",
+    "Kentucky|SEC",
+    "Georgia|SEC",
+    "Tennessee|SEC",
+    "Texas|SEC",
+    "TCU|Big 12",
+    "Baylor|Big 12",
+    "Stanford|ACC",
+    "USC|Big Ten",
+    "UCLA|Big Ten",
+    "Cal|ACC",
+    "Ole Miss|SEC",
+  ].map((x, i) => {
+    const [name, conference] = x.split("|");
+    return {
+      name: name!,
+      conference: conference!,
+      division: "D1",
+      minUtr: 11.5 + (i < 8 ? 1 : 0),
+      strength: 82 + (20 - i),
+    };
+  }),
+  ...[
+    "Barry",
+    "Valdosta State",
+    "Columbus State",
+    "Flagler",
+    "Palm Beach Atlantic",
+    "West Florida",
+    "Azusa Pacific",
+  ].map((name, i) => ({
+    name,
+    conference: "D2 Independent",
+    division: "D2",
+    minUtr: 8.5,
+    strength: 82 - i,
+  })),
+  ...[
+    "Emory",
+    "Middlebury",
+    "Williams",
+    "Amherst",
+    "Claremont-Mudd-Scripps",
+    "Bowdoin",
+    "Chicago",
+    "Carnegie Mellon",
+    "WashU",
+    "Case Western",
+    "Tufts",
+  ].map((name, i) => ({
+    name,
+    conference: i < 9 ? "UAA" : "NESCAC",
+    division: "D3",
+    minUtr: 5,
+    strength: 78 - i,
+  })),
+];
+
 export const SURFACES = ["Indoor Hard", "Hard", "Clay", "Grass"];
 
 export const STAFF_CATALOG: {
@@ -226,13 +344,48 @@ export const STAFF_CATALOG: {
 ];
 
 const FIRST = [
-  "Liam","Noah","Ethan","Lucas","Owen","Mateo","Felix","Jonas","Ryo","Arjun",
-  "Nathan","Cole","Émile","Declan","Kai","Theo","Marco","Dylan","Alexei","Hugo",
+  "Liam",
+  "Noah",
+  "Ethan",
+  "Lucas",
+  "Owen",
+  "Mateo",
+  "Felix",
+  "Jonas",
+  "Ryo",
+  "Arjun",
+  "Nathan",
+  "Cole",
+  "Émile",
+  "Declan",
+  "Kai",
+  "Theo",
+  "Marco",
+  "Dylan",
+  "Alexei",
+  "Hugo",
 ];
 const LAST = [
-  "Tremblay","Nguyen","Kowalski","Bianchi","Okafor","Suzuki","Novak","Reyes",
-  "Lindqvist","Bhatia","Moreau","Zhang","O'Brien","Petrov","Hausmann","Silva",
-  "Dubois","Kaur","Fernandez","Vasilev",
+  "Tremblay",
+  "Nguyen",
+  "Kowalski",
+  "Bianchi",
+  "Okafor",
+  "Suzuki",
+  "Novak",
+  "Reyes",
+  "Lindqvist",
+  "Bhatia",
+  "Moreau",
+  "Zhang",
+  "O'Brien",
+  "Petrov",
+  "Hausmann",
+  "Silva",
+  "Dubois",
+  "Kaur",
+  "Fernandez",
+  "Vasilev",
 ];
 
 export function randomName(rng: () => number = Math.random) {

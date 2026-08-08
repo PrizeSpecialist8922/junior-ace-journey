@@ -10,6 +10,8 @@ export function Trophies({ s }: { s: GameState }) {
     { key: "College", label: "NCAA College" },
     { key: "Pro", label: "Professional Tour" },
     { key: "Milestone", label: "Career Milestones" },
+    { key: "Team Canada", label: "National Team Medals" },
+    { key: "Olympic", label: "Olympic Medals" },
   ];
   const now = absWeek(s);
 

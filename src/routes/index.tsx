@@ -5,6 +5,8 @@ import { Dashboard } from "@/components/game/Dashboard";
 import { Doubles } from "@/components/game/Doubles";
 import { Tournaments } from "@/components/game/Tournaments";
 import { Training } from "@/components/game/Training";
+import { CareerStats } from "@/components/game/CareerStats";
+import { Sponsors } from "@/components/game/Sponsors";
 import { Trophies } from "@/components/game/Trophies";
 import { ActionButton } from "@/components/game/ui";
 import { createGame } from "@/game/engine";
@@ -29,7 +31,15 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const TABS = ["Dashboard", "Training & Staff", "Tournaments", "Doubles Roster", "Trophy Room"] as const;
+const TABS = [
+  "Dashboard",
+  "Training & Staff",
+  "Tournaments",
+  "Doubles Roster",
+  "Sponsors & Gear",
+  "Career Stats",
+  "Trophy Room",
+] as const;
 
 function Index() {
   const { state, loaded, update, commit } = useGame();
@@ -111,6 +121,8 @@ function Index() {
         {tab === "Training & Staff" && <Training s={state} update={update} />}
         {tab === "Tournaments" && <Tournaments s={state} update={update} />}
         {tab === "Doubles Roster" && <Doubles s={state} update={update} />}
+        {tab === "Sponsors & Gear" && <Sponsors s={state} update={update} />}
+        {tab === "Career Stats" && <CareerStats s={state} />}
         {tab === "Trophy Room" && <Trophies s={state} />}
       </div>
     </main>
