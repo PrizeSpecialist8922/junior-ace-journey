@@ -169,4 +169,6 @@ export interface GameState {
   wins: number;
   losses: number;
   titles: number;
+  surfaceForm: SurfaceForm;
+  committedEvents: string[]; // ids of events the player has entered before their deadline
 }
