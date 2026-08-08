@@ -8,6 +8,18 @@ export type Wealth = "Working Class" | "Middle Class" | "Affluent";
 export type Phase = "junior" | "college" | "pro" | "retired";
 export type StaffRole = "Private Coach" | "Fitness Trainer" | "Psychologist";
 
+export type Surface = "Indoor Hard" | "Hard" | "Clay" | "Grass";
+
+export interface Venue {
+  id: string;
+  name: string;
+  city: string;
+  region: string;
+  surface: Surface;
+  indoor: boolean;
+  travelCostTier: 1 | 2 | 3; // 1 = local GTA, 2 = Ontario/Montreal, 3 = international
+}
+
 export interface PointEntry {
   /** absolute week when earned */
   week: number;
@@ -56,6 +68,10 @@ export interface TournamentRun {
   result: string;
   points: number;
   prize: number;
+  surface: Surface;
+  venue: Venue;
+  conditions?: Conditions;
+  bracket?: BracketNode;
   doubles?: { partner: string; result: string; matches: MatchResult[] };
 }
 
@@ -64,6 +80,20 @@ export interface Attributes {
   fitness: number;
   mental: number;
   study: number;
+}
+
+export interface SurfaceForm {
+  "Indoor Hard": number;
+  Hard: number;
+  Clay: number;
+  Grass: number;
+}
+
+export interface Conditions {
+  tempC: number; // temperature in Celsius
+  windKph: number;
+  humidity: number; // 0-100
+  description: string;
 }
 
 export interface TournamentOffer {
@@ -79,7 +109,20 @@ export interface TournamentOffer {
   prize: number; // winner prize
   selectionPoints: boolean;
   doubles: boolean;
-  surface: string;
+  surface: Surface;
+  venue: Venue;
+  deadlineWeek: number; // entry deadline (absolute week)
+  travelCost: number;
+  committed: boolean;
+}
+
+export interface BracketNode {
+  round: string;
+  opponent?: string;
+  oppUtr?: number;
+  score?: string;
+  won?: boolean;
+  children?: [BracketNode, BracketNode];
 }
 
 export interface AIPlayer {
@@ -126,4 +169,6 @@ export interface GameState {
   wins: number;
   losses: number;
   titles: number;
+  surfaceForm: SurfaceForm;
+  committedEvents: string[]; // ids of events the player has entered before their deadline
 }
