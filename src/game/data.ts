@@ -1,4 +1,4 @@
-import type { Playstyle, StaffRole, Wealth } from "./types";
+import type { Playstyle, StaffRole, Surface, Venue, Wealth } from "./types";
 
 export const PLAYSTYLES: Playstyle[] = [
   "Serve & Volley",
@@ -19,6 +19,118 @@ export const WEALTH_ALLOWANCE: Record<Wealth, number> = {
   "Middle Class": 340,
   Affluent: 950,
 };
+
+export const VENUES: Venue[] = [
+  {
+    id: "sobeys-stadium",
+    name: "Sobeys Stadium / Aviva Centre",
+    city: "Toronto",
+    region: "Ontario",
+    surface: "Hard",
+    indoor: false,
+    travelCostTier: 1,
+  },
+  {
+    id: "ontario-racquet-club",
+    name: "Ontario Racquet Club",
+    city: "Mississauga",
+    region: "Ontario",
+    surface: "Indoor Hard",
+    indoor: true,
+    travelCostTier: 1,
+  },
+  {
+    id: "toronto-cricket",
+    name: "Toronto Cricket, Skating & Curling Club",
+    city: "Toronto",
+    region: "Ontario",
+    surface: "Indoor Hard",
+    indoor: true,
+    travelCostTier: 1,
+  },
+  {
+    id: "cedar-springs",
+    name: "Cedar Springs Health, Racquet & Sports Club",
+    city: "Burlington",
+    region: "Ontario",
+    surface: "Indoor Hard",
+    indoor: true,
+    travelCostTier: 1,
+  },
+  {
+    id: "ra-centre",
+    name: "RA Centre",
+    city: "Ottawa",
+    region: "Ontario",
+    surface: "Indoor Hard",
+    indoor: true,
+    travelCostTier: 2,
+  },
+  {
+    id: "national-tennis-centre",
+    name: "National Tennis Centre / IGA Stadium",
+    city: "Montreal",
+    region: "Quebec",
+    surface: "Hard",
+    indoor: false,
+    travelCostTier: 2,
+  },
+  {
+    id: "london-tennis-club",
+    name: "London Tennis Club",
+    city: "London",
+    region: "Ontario",
+    surface: "Clay",
+    indoor: false,
+    travelCostTier: 2,
+  },
+  {
+    id: "niagara-tennis",
+    name: "Niagara Tennis Academy",
+    city: "Niagara",
+    region: "Ontario",
+    surface: "Hard",
+    indoor: false,
+    travelCostTier: 1,
+  },
+  {
+    id: "barrie-tennis",
+    name: "Barrie Community Tennis Club",
+    city: "Barrie",
+    region: "Ontario",
+    surface: "Hard",
+    indoor: false,
+    travelCostTier: 1,
+  },
+  {
+    id: "windsor-tennis",
+    name: "Windsor Tennis Club",
+    city: "Windsor",
+    region: "Ontario",
+    surface: "Hard",
+    indoor: false,
+    travelCostTier: 2,
+  },
+];
+
+export const DEFAULT_SURFACE: Surface = "Indoor Hard";
+
+export function venueById(id: string): Venue {
+  return VENUES.find((v) => v.id === id) ?? VENUES[0]!;
+}
+
+export function surfaceForWeek(week: number): Surface {
+  if (week <= 14 || week >= 44) return "Indoor Hard";
+  if (week <= 24) return "Clay";
+  if (week <= 30) return "Grass";
+  return "Hard";
+}
+
+export function venueForSurface(surface: Surface): Venue {
+  const matches = VENUES.filter((v) => v.surface === surface);
+  if (matches.length) return matches[Math.floor(Math.random() * matches.length)]!;
+  return VENUES[Math.floor(Math.random() * VENUES.length)]!;
+}
 
 export const OTA_LEVELS = [
   {
