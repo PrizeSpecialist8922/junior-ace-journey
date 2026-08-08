@@ -68,6 +68,10 @@ export interface TournamentRun {
   result: string;
   points: number;
   prize: number;
+  surface: Surface;
+  venue: Venue;
+  conditions?: Conditions;
+  bracket?: BracketNode;
   doubles?: { partner: string; result: string; matches: MatchResult[] };
 }
 
