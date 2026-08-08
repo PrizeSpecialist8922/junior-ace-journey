@@ -8,6 +8,18 @@ export type Wealth = "Working Class" | "Middle Class" | "Affluent";
 export type Phase = "junior" | "college" | "pro" | "retired";
 export type StaffRole = "Private Coach" | "Fitness Trainer" | "Psychologist";
 
+export type Surface = "Indoor Hard" | "Hard" | "Clay" | "Grass";
+
+export interface Venue {
+  id: string;
+  name: string;
+  city: string;
+  region: string;
+  surface: Surface;
+  indoor: boolean;
+  travelCostTier: 1 | 2 | 3; // 1 = local GTA, 2 = Ontario/Montreal, 3 = international
+}
+
 export interface PointEntry {
   /** absolute week when earned */
   week: number;
