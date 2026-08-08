@@ -1045,6 +1045,25 @@ export function acceptPartner(s: GameState, name: string) {
   pushLog(s, `Paired up with ${p.name} (UTR ${p.utr.toFixed(2)}) for doubles.`, "good");
 }
 
+export function commitEvent(s: GameState, offer: TournamentOffer) {
+  if (s.committedEvents.includes(offer.id)) return;
+  if (s.bank < offer.travelCost) {
+    pushLog(s, `Cannot commit to ${offer.name}: travel deposit $${offer.travelCost} unavailable.`, "bad");
+    return;
+  }
+  s.bank -= offer.travelCost;
+  s.committedEvents.push(offer.id);
+  pushLog(s, `Entered ${offer.name} at ${offer.venue.name}. Travel deposit paid.`, "good");
+}
+
+export function withdrawEvent(s: GameState, offer: TournamentOffer) {
+  if (!s.committedEvents.includes(offer.id)) return;
+  s.committedEvents = s.committedEvents.filter((id) => id !== offer.id);
+  const refund = Math.round(offer.travelCost * 0.5);
+  s.bank += refund;
+  pushLog(s, `Withdrew from ${offer.name}. Refunded $${refund} of $${offer.travelCost}.`, "info");
+}
+
 /* --------------------------------- create --------------------------------- */
 
 export function createGame(name: string, hand: Hand, playstyle: Playstyle): GameState {
