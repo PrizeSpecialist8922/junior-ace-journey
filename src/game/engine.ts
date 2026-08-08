@@ -1088,6 +1088,8 @@ export function createGame(name: string, hand: Hand, playstyle: Playstyle): Game
     wins: 0,
     losses: 0,
     titles: 0,
+    surfaceForm: { "Indoor Hard": 50, Hard: 50, Clay: 50, Grass: 50 },
+    committedEvents: [],
   };
   pushLog(s, `${name} picks up a racquet for the first time in Ontario, Canada.`, "good");
   pushLog(s, `Family financial status: ${wealth} — $${s.allowance}/week available.`, "info");
