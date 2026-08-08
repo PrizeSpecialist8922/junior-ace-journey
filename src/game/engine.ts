@@ -662,6 +662,15 @@ function buildBracket(drawSize: number, matches: MatchResult[], playerName: stri
 export function playTournament(s: GameState, offer: TournamentOffer): TournamentRun {
   const matches: MatchResult[] = [];
   const log = (t: string, tone = "info") => pushLog(s, t, tone);
+  const conditions = rollConditions(offer.surface, offer.venue.indoor);
+
+  // travel logistics
+  s.bank -= offer.travelCost;
+  if (offer.travelCost > 0) {
+    const travelFatigue = offer.venue.travelCostTier * 3;
+    s.fatigue = clamp(s.fatigue + travelFatigue, 0, 100);
+    log(`Travelled to ${offer.venue.city} for ${offer.name} ($${offer.travelCost}).`, "info");
+  }
 
   let result = "";
   let earned = 0;
@@ -677,6 +686,7 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
         randomName(),
         clamp(offer.fieldUtr + rnd(-0.7, 0.9), 1, 16.5),
         offer.surface,
+        conditions,
       );
       matches.push(m);
       if (m.won) wins++;
@@ -690,6 +700,7 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
         kind: "OTA",
         age: s.age,
         season: s.season,
+        detail: `${offer.venue.city} • ${offer.surface}`,
       });
     }
   } else {
@@ -698,7 +709,7 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
     for (let i = 0; i < names.length; i++) {
       const step = i / Math.max(1, names.length - 1);
       const oppUtr = clamp(offer.fieldUtr - 1.0 + step * 2.6 + rnd(-0.4, 0.4), 1, 16.5);
-      const m = simulateMatch(s, names[i]!, randomName(), oppUtr, offer.surface);
+      const m = simulateMatch(s, names[i]!, randomName(), oppUtr, offer.surface, conditions);
       matches.push(m);
       if (!m.won) break;
       roundsWon++;
@@ -732,7 +743,7 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
                 : "OTA",
         age: s.age,
         season: s.season,
-        detail: `${offer.tier} • ${offer.surface}`,
+        detail: `${offer.tier} • ${offer.surface} • ${offer.venue.city}`,
       });
     }
   }
@@ -761,6 +772,10 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
     result,
     points: earned,
     prize,
+    surface: offer.surface,
+    venue: offer.venue,
+    conditions,
+    bracket: offer.level > 0 && offer.id !== "l1" && offer.id !== "college-dual" ? buildBracket(offer.drawSize, matches, s.name) : undefined,
   };
 
   // doubles
@@ -793,7 +808,7 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
         kind: "OTA",
         age: s.age,
         season: s.season,
-        detail: `with ${s.partner.name}`,
+        detail: `with ${s.partner.name} • ${offer.venue.city}`,
       });
     }
     run.doubles = {
@@ -802,6 +817,9 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
       matches: dm,
     };
   }
+
+  // remove from committed events once played
+  s.committedEvents = s.committedEvents.filter((id) => id !== offer.id);
 
   s.runs.unshift(run);
   s.playedThisWeek = true;
