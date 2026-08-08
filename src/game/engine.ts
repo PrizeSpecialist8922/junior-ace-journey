@@ -103,7 +103,7 @@ export function selectionRank(s: GameState) {
 
 /* ------------------------------ match engine ------------------------------ */
 
-function styleEdge(style: Playstyle, oppUtr: number, myUtr: number, surface: string) {
+function styleEdge(style: Playstyle, oppUtr: number, myUtr: number, surface: Surface) {
   let e = 0;
   if (style === "Serve & Volley" && surface.includes("Hard")) e += 0.3;
   if (style === "Serve & Volley" && surface === "Grass") e += 0.45;
@@ -111,6 +111,29 @@ function styleEdge(style: Playstyle, oppUtr: number, myUtr: number, surface: str
   if (style === "Counterpuncher" && oppUtr > myUtr) e += 0.45;
   if (style === "All-Court") e += 0.12;
   return e;
+}
+
+function conditionsEdge(surfaceForm: number, conditions?: Conditions, fitness = 50, style: Playstyle = "All-Court") {
+  let e = (surfaceForm - 50) / 200; // +/- 0.25 at extremes
+  if (!conditions) return e;
+  // heat hurts low fitness; wind hurts serve-volley; humidity is neutral flavor
+  if (conditions.tempC > 30) e -= Math.max(0, (40 - fitness) / 250);
+  if (conditions.windKph > 20 && style === "Serve & Volley") e -= 0.12;
+  if (conditions.windKph > 20 && style === "Baseline Grinder") e += 0.04;
+  return e;
+}
+
+export function rollConditions(surface: Surface, indoor: boolean): Conditions {
+  const tempBase = indoor ? 20 : surface === "Clay" ? 24 : surface === "Grass" ? 22 : 26;
+  const tempC = Math.round(tempBase + rnd(-8, 12));
+  const windKph = indoor ? Math.round(rnd(0, 5)) : Math.round(rnd(0, 35));
+  const humidity = Math.round(rnd(35, 90));
+  let description = `${tempC}°C`;
+  if (windKph > 25) description += ` • windy (${windKph} km/h)`;
+  else if (windKph > 12) description += ` • breezy`;
+  if (humidity > 75) description += ` • humid`;
+  else if (humidity < 45) description += ` • dry`;
+  return { tempC, windKph, humidity, description };
 }
 
 function playSet(pGame: number): [number, number] {
@@ -131,12 +154,18 @@ export function simulateMatch(
   round: string,
   oppName: string,
   oppUtr: number,
-  surface: string,
+  surface: Surface,
+  conditions?: Conditions,
 ): MatchResult {
   const fatiguePenalty = (s.fatigue / 100) * 1.2;
   const mentalBonus = (s.attrs.mental / 100) * 0.5;
+  const form = s.surfaceForm[surface] ?? 50;
   const eff =
-    s.utr - fatiguePenalty + mentalBonus + styleEdge(s.playstyle, oppUtr, s.utr, surface);
+    s.utr -
+    fatiguePenalty +
+    mentalBonus +
+    styleEdge(s.playstyle, oppUtr, s.utr, surface) +
+    conditionsEdge(form, conditions, s.attrs.fitness, s.playstyle);
   const p = 1 / (1 + Math.pow(10, (oppUtr - eff) / 2.2));
   const pGame = clamp(0.5 + (p - 0.5) * 0.62, 0.12, 0.88);
 
@@ -164,6 +193,10 @@ export function simulateMatch(
   s.fatigue = clamp(s.fatigue + 5 + sets.length * 2, 0, 100);
   if (won) s.wins++;
   else s.losses++;
+
+  // surface form improves with competitive reps
+  const formGain = 0.4 + (won ? 0.3 : 0.1) + Math.max(0, (oppUtr - s.utr) / 10);
+  s.surfaceForm[surface] = clamp((s.surfaceForm[surface] ?? 50) + formGain, 0, 100);
 
   return {
     round,
