@@ -74,15 +74,17 @@ export function Tournaments({
         <Panel title="Surface Form" subtitle="Familiarity rises with matches played; affects performance.">
           <div className="grid gap-3 sm:grid-cols-2">
             {SURFACES.map((sf) => (
-              <div key={sf}>
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="font-medium">
-                    {surfaceEmoji(sf)} {sf}
-                  </span>
-                  <span className="tabular-nums text-muted-foreground">{Math.round(s.surfaceForm[sf])}/100</span>
+                <div key={sf}>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-medium">
+                      {surfaceEmoji(sf)} {sf}
+                    </span>
+                    <span className="tabular-nums text-muted-foreground">{Math.round(s.surfaceForm[sf])}/100</span>
+                  </div>
+                  <div className="mt-1.5">
+                    <Bar value={s.surfaceForm[sf]} max={100} tone="emerald" />
+                  </div>
                 </div>
-                <Bar value={s.surfaceForm[sf]} max={100} tone="emerald" className="mt-1.5" />
-              </div>
             ))}
           </div>
         </Panel>
