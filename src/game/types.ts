@@ -78,6 +78,20 @@ export interface Attributes {
   study: number;
 }
 
+export interface SurfaceForm {
+  "Indoor Hard": number;
+  Hard: number;
+  Clay: number;
+  Grass: number;
+}
+
+export interface Conditions {
+  tempC: number; // temperature in Celsius
+  windKph: number;
+  humidity: number; // 0-100
+  description: string;
+}
+
 export interface TournamentOffer {
   id: string;
   name: string;
@@ -91,7 +105,20 @@ export interface TournamentOffer {
   prize: number; // winner prize
   selectionPoints: boolean;
   doubles: boolean;
-  surface: string;
+  surface: Surface;
+  venue: Venue;
+  deadlineWeek: number; // entry deadline (absolute week)
+  travelCost: number;
+  committed: boolean;
+}
+
+export interface BracketNode {
+  round: string;
+  opponent?: string;
+  oppUtr?: number;
+  score?: string;
+  won?: boolean;
+  children?: [BracketNode, BracketNode];
 }
 
 export interface AIPlayer {
