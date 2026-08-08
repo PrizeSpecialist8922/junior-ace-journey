@@ -243,234 +243,341 @@ export function tierUnlocks(s: GameState) {
   };
 }
 
+const INDOOR_VENUES = ["ontario-racquet-club", "toronto-cricket", "cedar-springs", "ra-centre"];
+const CLAY_VENUE = "london-tennis-club";
+const GRASS_VENUE = "niagara-tennis";
+const SUMMER_HARD_VENUES = ["sobeys-stadium", "niagara-tennis", "barrie-tennis", "windsor-tennis"];
+
+function venueForWeek(week: number, surface: Surface) {
+  if (surface === "Indoor Hard") {
+    return venueById(INDOOR_VENUES[week % INDOOR_VENUES.length]!);
+  }
+  if (surface === "Clay") return venueById(CLAY_VENUE);
+  if (surface === "Grass") return venueById(GRASS_VENUE);
+  return venueById(SUMMER_HARD_VENUES[week % SUMMER_HARD_VENUES.length]!);
+}
+
+function juniorEventName(level: number, week: number, surface: Surface, br: string): string {
+  const venue = venueForWeek(week, surface);
+  const season = week <= 14 ? "Winter Indoor" : week <= 24 ? "Spring Clay" : week <= 30 ? "Summer Grass" : "Summer/Fall";
+  if (level === 1) return `Rogers First Set Tour ${br} — ${venue.city}`;
+  if (level === 2) return `Nike Transition Tour ${br} — ${venue.city}`;
+  if (level === 3) return `OTA Provincial Circuit ${br} — ${venue.city}`;
+  if (level === 3.5) return `OTA Provincial Circuit + ${br} — ${venue.city}`;
+  if (level === 4 && SELECTION_WEEKS.includes(week)) {
+    return `OTA Selection Series ${br} — ${venue.name}`;
+  }
+  if (week === PROVINCIALS_WEEK) return `Ontario Provincial Championships ${br} — ${venue.name}`;
+  if (week === NATIONALS_WEEK) return `National Bank Junior Nationals ${br} — ${venue.name}`;
+  return `OTA Event ${br}`;
+}
+
 export function listTournaments(s: GameState): TournamentOffer[] {
   const out: TournamentOffer[] = [];
   const surface = surfaceForWeek(s.week);
   const u = tierUnlocks(s);
   const br = ageBracket(s.age);
+  const now = absWeek(s);
 
   if (s.phase === "pro") {
     const rank = atpRank(s);
     PRO_TIERS.forEach((t, i) => {
-      out.push({
-        id: `pro-${i}`,
-        name: `${t.name} — Week ${s.week}`,
-        tier: t.name,
-        level: 6,
-        requirement:
-          t.name === "Grand Slam"
-            ? "Direct acceptance: ATP Top 104"
-            : `ATP rank ${t.rank} or better`,
-        eligible: rank <= t.rank,
-        drawSize: t.drawSize,
-        fieldUtr: t.utr,
-        points: t.points,
-        prize: t.prize,
-        selectionPoints: false,
-        doubles: true,
-        surface,
-      });
+      const venue = venueForWeek(s.week, surface);
+      out.push(
+        baseOffer(
+          {
+            id: `pro-${i}`,
+            name: `${t.name} — ${venue.city}`,
+            tier: t.name,
+            level: 6,
+            requirement:
+              t.name === "Grand Slam"
+                ? "Direct acceptance: ATP Top 104"
+                : `ATP rank ${t.rank} or better`,
+            eligible: rank <= t.rank,
+            drawSize: t.drawSize,
+            fieldUtr: t.utr,
+            points: t.points,
+            prize: t.prize,
+            selectionPoints: false,
+            doubles: true,
+            surface,
+          },
+          s.week,
+        ),
+      );
     });
     return out;
   }
 
   if (s.phase === "college") {
-    out.push({
-      id: "college-dual",
-      name: `NCAA ${s.collegeDivision} Dual Match`,
-      tier: `NCAA ${s.collegeDivision}`,
-      level: 5.5,
-      requirement: s.collegeSuspended ? "Suspended — GPA below 2.0" : "Roster member in good standing",
-      eligible: !s.collegeSuspended,
-      drawSize: 4,
-      fieldUtr:
-        s.collegeDivision === "D1" ? 13.2 : s.collegeDivision === "D2" ? 11.0 : 8.0,
-      points: 0,
-      prize: 0,
-      selectionPoints: false,
-      doubles: true,
-      surface,
-    });
+    const venue = venueForWeek(s.week, surface);
+    out.push(
+      baseOffer(
+        {
+          id: "college-dual",
+          name: `NCAA ${s.collegeDivision} Dual Match — ${venue.city}`,
+          tier: `NCAA ${s.collegeDivision}`,
+          level: 5.5,
+          requirement: s.collegeSuspended ? "Suspended — GPA below 2.0" : "Roster member in good standing",
+          eligible: !s.collegeSuspended,
+          drawSize: 4,
+          fieldUtr: s.collegeDivision === "D1" ? 13.2 : s.collegeDivision === "D2" ? 11.0 : 8.0,
+          points: 0,
+          prize: 0,
+          selectionPoints: false,
+          doubles: true,
+          surface,
+        },
+        s.week,
+      ),
+    );
     ITF_TIERS.slice(0, 3).forEach((t, i) => {
-      out.push({
-        id: `sum-itf-${i}`,
-        name: `Summer Open — ${t.name.replace("J", "$")}`,
-        tier: t.name.replace("ITF J", "ITF Futures-style Open "),
-        level: 5,
-        requirement: `UTR ${t.utr.toFixed(2)}+ field`,
-        eligible: s.utr >= t.utr - 1.5,
-        drawSize: 32,
-        fieldUtr: t.utr,
-        points: 0,
-        prize: t.points * 40,
-        selectionPoints: false,
-        doubles: false,
-        surface,
-      });
+      const itfSurface = SURFACES[i % SURFACES.length] as Surface;
+      const itfVenue = venueForWeek(s.week + i, itfSurface);
+      out.push(
+        baseOffer(
+          {
+            id: `sum-itf-${i}`,
+            name: `${t.name} — ${itfVenue.city}`,
+            tier: t.name.replace("ITF J", "ITF Futures-style Open "),
+            level: 5,
+            requirement: `UTR ${t.utr.toFixed(2)}+ field`,
+            eligible: s.utr >= t.utr - 1.5,
+            drawSize: 32,
+            fieldUtr: t.utr,
+            points: 0,
+            prize: t.points * 40,
+            selectionPoints: false,
+            doubles: false,
+            surface: itfSurface,
+          },
+          s.week,
+        ),
+      );
     });
     return out;
   }
 
   if (s.age < 10) {
-    out.push({
-      id: "prog",
-      name:
-        s.age <= 6
-          ? "Red Ball Progressive Tennis Festival"
-          : s.age <= 8
-            ? "Orange Ball Club Team Event"
-            : "Green Dot Local Team Challenge",
-      tier: "Progressive Tennis (non-sanctioned)",
-      level: 0,
-      requirement: "Open to all club juniors — no ranking",
-      eligible: true,
-      drawSize: 4,
-      fieldUtr: clamp(s.utr + 0.3, 1, 4),
-      points: 0,
-      prize: 0,
-      selectionPoints: false,
-      doubles: false,
-      surface: "Indoor Hard",
-    });
+    const venue = venueById("ontario-racquet-club");
+    out.push(
+      baseOffer(
+        {
+          id: "prog",
+          name:
+            s.age <= 6
+              ? "Red Ball Progressive Tennis Festival"
+              : s.age <= 8
+                ? "Orange Ball Club Team Event"
+                : "Green Dot Local Team Challenge",
+          tier: "Progressive Tennis (non-sanctioned)",
+          level: 0,
+          requirement: "Open to all club juniors — no ranking",
+          eligible: true,
+          drawSize: 4,
+          fieldUtr: clamp(s.utr + 0.3, 1, 4),
+          points: 0,
+          prize: 0,
+          selectionPoints: false,
+          doubles: false,
+          surface: "Indoor Hard",
+        },
+        s.week,
+      ),
+    );
     return out;
   }
 
-  out.push({
-    id: "l1",
-    name: `Rogers First Set Tour ${br} — Rookie Round Robin`,
-    tier: "Level 1 — Rookie Tour",
-    level: 1,
-    requirement: "Entry level. No restriction.",
-    eligible: u.l1,
-    drawSize: 4,
-    fieldUtr: clamp(s.utr + rnd(-0.4, 0.6), 1, 6),
-    points: 0,
-    prize: 0,
-    selectionPoints: false,
-    doubles: false,
-    surface,
-  });
-  out.push({
-    id: "l2",
-    name: `Nike Transition Tour ${br} — ${surface}`,
-    tier: "Level 2 — Nike Transition Tour",
-    level: 2,
-    requirement: "Ontario ranking 31st or lower in age group",
-    eligible: u.l2,
-    drawSize: 16,
-    fieldUtr: clamp(3.2 + s.age * 0.1, 2, 7),
-    points: 40,
-    prize: 0,
-    selectionPoints: false,
-    doubles: false,
-    surface,
-  });
-  out.push({
-    id: "l3",
-    name: `Provincial Circuit ${br} — ${surface}`,
-    tier: "Level 3 — Provincial Circuit",
-    level: 3,
-    requirement: "Top 100 Ontario or UTR 3.50+",
-    eligible: u.l3,
-    drawSize: 32,
-    fieldUtr: clamp(4.6 + s.age * 0.14, 3, 9),
-    points: 120,
-    prize: 0,
-    selectionPoints: false,
-    doubles: false,
-    surface,
-  });
-  out.push({
-    id: "l35",
-    name: `Provincial Circuit + ${br} — ${surface}`,
-    tier: "Level 3.5 — Provincial Circuit Plus",
-    level: 3.5,
-    requirement: "Top 50 Ontario or UTR 6.00+",
-    eligible: u.l35,
-    drawSize: 32,
-    fieldUtr: clamp(6.2 + s.age * 0.16, 4, 11),
-    points: 260,
-    prize: 0,
-    selectionPoints: false,
-    doubles: true,
-    surface,
-  });
+  out.push(
+    baseOffer(
+      {
+        id: "l1",
+        name: juniorEventName(1, s.week, surface, br),
+        tier: "Level 1 — Rookie Tour",
+        level: 1,
+        requirement: "Entry level. No restriction.",
+        eligible: u.l1,
+        drawSize: 4,
+        fieldUtr: clamp(s.utr + rnd(-0.4, 0.6), 1, 6),
+        points: 0,
+        prize: 0,
+        selectionPoints: false,
+        doubles: false,
+        surface,
+      },
+      s.week,
+    ),
+  );
+  out.push(
+    baseOffer(
+      {
+        id: "l2",
+        name: juniorEventName(2, s.week, surface, br),
+        tier: "Level 2 — Nike Transition Tour",
+        level: 2,
+        requirement: "Ontario ranking 31st or lower in age group",
+        eligible: u.l2,
+        drawSize: 16,
+        fieldUtr: clamp(3.2 + s.age * 0.1, 2, 7),
+        points: 40,
+        prize: 0,
+        selectionPoints: false,
+        doubles: false,
+        surface,
+      },
+      s.week,
+    ),
+  );
+  out.push(
+    baseOffer(
+      {
+        id: "l3",
+        name: juniorEventName(3, s.week, surface, br),
+        tier: "Level 3 — Provincial Circuit",
+        level: 3,
+        requirement: "Top 100 Ontario or UTR 3.50+",
+        eligible: u.l3,
+        drawSize: 32,
+        fieldUtr: clamp(4.6 + s.age * 0.14, 3, 9),
+        points: 120,
+        prize: 0,
+        selectionPoints: false,
+        doubles: false,
+        surface,
+      },
+      s.week,
+    ),
+  );
+  out.push(
+    baseOffer(
+      {
+        id: "l35",
+        name: juniorEventName(3.5, s.week, surface, br),
+        tier: "Level 3.5 — Provincial Circuit Plus",
+        level: 3.5,
+        requirement: "Top 50 Ontario or UTR 6.00+",
+        eligible: u.l35,
+        drawSize: 32,
+        fieldUtr: clamp(6.2 + s.age * 0.16, 4, 11),
+        points: 260,
+        prize: 0,
+        selectionPoints: false,
+        doubles: true,
+        surface,
+      },
+      s.week,
+    ),
+  );
 
   if (SELECTION_WEEKS.includes(s.week)) {
     const indoor = s.week < 20 || s.week > 40;
-    out.push({
-      id: "l4",
-      name: `OTA Selection Series ${br} — ${indoor ? "Indoor (Winter)" : "Outdoor (Summer)"}`,
-      tier: "Level 4.0 — Selection Series",
-      level: 4,
-      requirement: "Top 32 Ontario Rogers Ranking",
-      eligible: u.l4,
-      drawSize: 32,
-      fieldUtr: clamp(7.6 + s.age * 0.18, 5, 12.5),
-      points: 700,
-      prize: 0,
-      selectionPoints: true,
-      doubles: true,
-      surface: indoor ? "Indoor Hard" : "Hard",
-    });
+    const selSurface: Surface = indoor ? "Indoor Hard" : "Hard";
+    out.push(
+      baseOffer(
+        {
+          id: "l4",
+          name: juniorEventName(4, s.week, selSurface, br),
+          tier: "Level 4.0 — Selection Series",
+          level: 4,
+          requirement: "Top 32 Ontario Rogers Ranking",
+          eligible: u.l4,
+          drawSize: 32,
+          fieldUtr: clamp(7.6 + s.age * 0.18, 5, 12.5),
+          points: 700,
+          prize: 0,
+          selectionPoints: true,
+          doubles: true,
+          surface: selSurface,
+        },
+        s.week,
+      ),
+    );
   }
   if (s.week === PROVINCIALS_WEEK) {
-    out.push({
-      id: "provincials",
-      name: `Ontario Provincial Championships ${br}`,
-      tier: "OTA Provincial Championship",
-      level: 4,
-      requirement: "Top 64 Ontario Rogers Ranking",
-      eligible: u.rank <= 64,
-      drawSize: 64,
-      fieldUtr: clamp(8.0 + s.age * 0.18, 5, 13),
-      points: 900,
-      prize: 0,
-      selectionPoints: true,
-      doubles: true,
-      surface: "Indoor Hard",
-    });
+    const provVenue = venueById("ontario-racquet-club");
+    out.push(
+      baseOffer(
+        {
+          id: "provincials",
+          name: `Ontario Provincial Championships ${br} — ${provVenue.name}`,
+          tier: "OTA Provincial Championship",
+          level: 4,
+          requirement: "Top 64 Ontario Rogers Ranking",
+          eligible: u.rank <= 64,
+          drawSize: 64,
+          fieldUtr: clamp(8.0 + s.age * 0.18, 5, 13),
+          points: 900,
+          prize: 0,
+          selectionPoints: true,
+          doubles: true,
+          surface: "Indoor Hard",
+        },
+        s.week,
+      ),
+    );
   }
   if (s.week === NATIONALS_WEEK) {
-    out.push({
-      id: "nationals",
-      name: `National Bank Junior Nationals ${br}`,
-      tier: "Tennis Canada National Championship",
-      level: 4,
-      requirement: s.qualifiedNationals
-        ? "QUALIFIED — Top 16 Ontario selection points (Main Draw)"
-        : "Top 16 Ontario selection points required",
-      eligible: s.qualifiedNationals,
-      drawSize: 64,
-      fieldUtr: clamp(8.8 + s.age * 0.2, 6, 13.5),
-      points: 1200,
-      prize: 0,
-      selectionPoints: false,
-      doubles: true,
-      surface: "Indoor Hard",
-    });
+    const natVenue = venueById("national-tennis-centre");
+    out.push(
+      baseOffer(
+        {
+          id: "nationals",
+          name: `National Bank Junior Nationals ${br} — ${natVenue.name}`,
+          tier: "Tennis Canada National Championship",
+          level: 4,
+          requirement: s.qualifiedNationals
+            ? "QUALIFIED — Top 16 Ontario selection points (Main Draw)"
+            : "Top 16 Ontario selection points required",
+          eligible: s.qualifiedNationals,
+          drawSize: 64,
+          fieldUtr: clamp(8.8 + s.age * 0.2, 6, 13.5),
+          points: 1200,
+          prize: 0,
+          selectionPoints: false,
+          doubles: true,
+          surface: "Indoor Hard",
+        },
+        s.week,
+      ),
+    );
   }
 
   if (u.itf) {
     ITF_TIERS.forEach((t, i) => {
-      out.push({
-        id: `itf-${i}`,
-        name: `${t.name} ${["Toronto", "Montreal", "Miami", "Barcelona", "Osaka"][i]}`,
-        tier: `ITF Junior ${t.name.replace("ITF ", "")}`,
-        level: 5,
-        requirement: `UTR ${t.utr.toFixed(2)}+ (age 13-18 only)`,
-        eligible: s.utr >= t.utr - 0.75,
-        drawSize: t.drawSize,
-        fieldUtr: t.utr,
-        points: Math.round(t.points * 0.9),
-        prize: 0,
-        selectionPoints: false,
-        doubles: t.points >= 100,
-        surface: SURFACES[i % SURFACES.length]!,
-      });
+      const itfSurface = SURFACES[i % SURFACES.length] as Surface;
+      const itfVenue = venueForWeek(s.week + i, itfSurface);
+      out.push(
+        baseOffer(
+          {
+            id: `itf-${i}`,
+            name: `${t.name} — ${itfVenue.city}`,
+            tier: `ITF Junior ${t.name.replace("ITF ", "")}`,
+            level: 5,
+            requirement: `UTR ${t.utr.toFixed(2)}+ (age 13-18 only)`,
+            eligible: s.utr >= t.utr - 0.75,
+            drawSize: t.drawSize,
+            fieldUtr: t.utr,
+            points: Math.round(t.points * 0.9),
+            prize: 0,
+            selectionPoints: false,
+            doubles: t.points >= 100,
+            surface: itfSurface,
+          },
+          s.week,
+        ),
+      );
     });
   }
-  return out;
+
+  // mark committed events and hide events whose deadline has passed without commitment
+  return out
+    .map((o) => ({
+      ...o,
+      committed: s.committedEvents.includes(o.id),
+      eligible: o.eligible && (s.committedEvents.includes(o.id) || now <= o.deadlineWeek),
+    }))
+    .filter((o) => s.committedEvents.includes(o.id) || now <= o.deadlineWeek || o.level === 0);
 }
 
 /* --------------------------- tournament execution ------------------------- */
