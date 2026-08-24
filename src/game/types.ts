@@ -188,6 +188,16 @@ export interface AIPlayer {
   points: number;
   utr: number;
   selection?: number;
+  /** deeper profile — the pool is a living world */
+  age?: number;
+  potential?: number; // UTR ceiling this player can reach
+  phase?: "junior" | "college" | "pro" | "retired";
+  playstyle?: Playstyle;
+  hand?: Hand;
+  region?: string;
+  injuryWeeks?: number;
+  peakUtr?: number;
+  seasons?: number;
 }
 
 export interface GameState {
