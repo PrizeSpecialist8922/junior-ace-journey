@@ -251,6 +251,186 @@ export function rollConditions(surface: Surface, indoor: boolean): Conditions {
   return { tempC, windKph, humidity, description };
 }
 
+/* ------------------------- body load & injury engine ----------------------- */
+
+export const BODY_AREAS: BodyArea[] = ["Shoulder", "Wrist", "Back", "Knee"];
+
+const INJURY_LABELS: Record<BodyArea, Record<InjurySeverity, string>> = {
+  Shoulder: {
+    Niggle: "sore rotator cuff",
+    Strain: "rotator cuff tendinitis",
+    Major: "labral tear in the shoulder",
+  },
+  Wrist: {
+    Niggle: "tight wrist extensor",
+    Strain: "wrist tendon strain",
+    Major: "torn wrist ligament",
+  },
+  Back: {
+    Niggle: "stiff lower back",
+    Strain: "lumbar muscle strain",
+    Major: "stress fracture in the lower back",
+  },
+  Knee: {
+    Niggle: "achy patellar tendon",
+    Strain: "patellar tendinitis",
+    Major: "meniscus tear",
+  },
+};
+
+export function physioQuality(s: GameState) {
+  return s.staff.filter((x) => x.role === "Physiotherapist").reduce((n, x) => Math.max(n, x.quality), 0);
+}
+
+function ensureBody(s: GameState) {
+  s.bodyLoad ??= { Shoulder: 0, Wrist: 0, Back: 0, Knee: 0 };
+  s.injuryHistory ??= [];
+  s.sharpness ??= 100;
+  s.confidence ??= 50;
+  s.motivation ??= 75;
+}
+
+/** Load added by a match: sets played, surface, string tension. */
+function addLoad(s: GameState, sets: number, surface: Surface) {
+  ensureBody(s);
+  const tension = s.stringTension === "High" ? 1.25 : s.stringTension === "Low" ? 0.9 : 1;
+  const surfaceMult = surface === "Clay" ? 0.85 : surface === "Grass" ? 0.95 : 1.1;
+  const base = (2.6 + sets * 1.5) * tension * surfaceMult;
+  const durability = 1 - clamp(s.attrs.fitness, 0, 100) / 260; // fit players absorb load better
+  s.bodyLoad.Shoulder = clamp(s.bodyLoad.Shoulder + base * 0.9 * durability, 0, 100);
+  s.bodyLoad.Wrist = clamp(s.bodyLoad.Wrist + base * 0.7 * durability, 0, 100);
+  s.bodyLoad.Back = clamp(s.bodyLoad.Back + base * 0.85 * durability, 0, 100);
+  s.bodyLoad.Knee = clamp(s.bodyLoad.Knee + base * (surface === "Clay" ? 0.7 : 1.05) * durability, 0, 100);
+}
+
+export function injuryRisk(s: GameState) {
+  ensureBody(s);
+  const worst = Math.max(...BODY_AREAS.map((a) => s.bodyLoad[a]));
+  const ageFactor = s.age >= 28 ? (s.age - 27) * 0.6 : 0;
+  const raw =
+    worst * 0.22 + s.fatigue * 0.12 + ageFactor - clamp(s.attrs.fitness, 0, 100) * 0.06 - physioQuality(s) * 1.8;
+  return clamp(Math.round(raw), 0, 90);
+}
+
+/** Weekly injury roll. Returns true if a new injury was suffered. */
+function rollInjury(s: GameState): boolean {
+  ensureBody(s);
+  if (s.injury) return false;
+  const risk = injuryRisk(s) / 100;
+  if (Math.random() > risk * 0.35) return false;
+  const area = BODY_AREAS.slice()
+    .sort((a, b) => s.bodyLoad[b] - s.bodyLoad[a])
+    .slice(0, 2)[Math.random() < 0.7 ? 0 : 1]!;
+  const load = s.bodyLoad[area];
+  const roll = Math.random();
+  const severity: InjurySeverity =
+    load > 78 && roll < 0.3 ? "Major" : load > 55 || roll < 0.55 ? "Strain" : "Niggle";
+  const weeks =
+    severity === "Major"
+      ? Math.round(rnd(8, 26))
+      : severity === "Strain"
+        ? Math.round(rnd(1, 4))
+        : Math.round(rnd(1, 2));
+  s.injury = {
+    area,
+    severity,
+    label: INJURY_LABELS[area][severity],
+    weeksOut: severity === "Niggle" ? 0 : weeks,
+    weeksTotal: weeks,
+    startedAbsWeek: absWeek(s),
+  };
+  s.bodyLoad[area] = clamp(load * 0.7, 0, 100);
+  s.confidence = clamp(s.confidence - (severity === "Major" ? 22 : 8), 0, 100);
+  s.motivation = clamp(s.motivation - (severity === "Major" ? 14 : 4), 0, 100);
+  s.injuryHistory.unshift({
+    label: s.injury.label,
+    area,
+    weeks,
+    age: s.age,
+    season: s.season,
+  });
+  pushLog(
+    s,
+    severity === "Niggle"
+      ? `Diagnosis: ${s.injury.label}. You can play through it, but not at full level.`
+      : `INJURED — ${s.injury.label}. Out for ${weeks} week${weeks === 1 ? "" : "s"}.`,
+    "bad",
+  );
+  return true;
+}
+
+/** Weekly recovery: load drains, injuries count down, sharpness fades in layoffs. */
+function recover(s: GameState, restWeek: boolean) {
+  ensureBody(s);
+  const physio = physioQuality(s);
+  const drain = (restWeek ? 6.5 : 2.4) + physio * 1.6 + s.attrs.fitness / 45;
+  for (const a of BODY_AREAS) s.bodyLoad[a] = clamp(s.bodyLoad[a] - drain, 0, 100);
+
+  if (s.injury) {
+    if (s.injury.severity === "Niggle") {
+      if (Math.random() < 0.6 || restWeek) {
+        pushLog(s, `The ${s.injury.label} has settled down.`, "good");
+        s.injury = null;
+      }
+    } else {
+      s.injury.weeksOut = Math.max(0, s.injury.weeksOut - 1 - (physio >= 3 && Math.random() < 0.3 ? 1 : 0));
+      for (const a of BODY_AREAS) s.bodyLoad[a] = clamp(s.bodyLoad[a] - 2.5, 0, 100);
+      s.sharpness = clamp(s.sharpness - 5.5, 10, 100);
+      if (s.injury.weeksOut <= 0) {
+        pushLog(
+          s,
+          `Cleared to compete again after ${s.injury.weeksTotal} weeks (${s.injury.label}). Match sharpness is at ${Math.round(s.sharpness)}%.`,
+          "good",
+        );
+        s.injury = null;
+      } else {
+        pushLog(s, `Rehab: ${s.injury.weeksOut} week(s) remaining on the ${s.injury.label}.`, "info");
+      }
+    }
+  } else if (restWeek) {
+    s.sharpness = clamp(s.sharpness - 1.2, 20, 100);
+  }
+}
+
+export function isSidelined(s: GameState) {
+  return !!s.injury && s.injury.weeksOut > 0;
+}
+
+/* ------------------------------ mental state ------------------------------ */
+
+function updateMental(s: GameState, playedThisWeek: boolean, alloc: { tennis: number; fitness: number }) {
+  ensureBody(s);
+  const psych = staffMultiplier(s, "Psychologist") - 1; // 0 .. 1.1
+  // confidence drifts back to the middle
+  s.confidence = clamp(s.confidence + (50 - s.confidence) * 0.07 + psych * 1.5, 0, 100);
+
+  const grind = playedThisWeek ? 2.2 : 0;
+  const heavyTraining = Math.max(0, alloc.tennis + alloc.fitness - 7) * 0.5;
+  const restBonus = !playedThisWeek && alloc.tennis + alloc.fitness <= 4 ? 4.5 : 0;
+  s.motivation = clamp(
+    s.motivation - grind - heavyTraining + restBonus + psych * 2.2 + (s.confidence - 50) / 40,
+    0,
+    100,
+  );
+  if (isSidelined(s)) s.motivation = clamp(s.motivation - 1.5, 0, 100);
+
+  if (s.motivation < 20 && !s.burnoutWarned) {
+    s.burnoutWarned = true;
+    pushLog(
+      s,
+      "BURNOUT WARNING: you are running on empty. Rest weeks or a psychologist, or you may walk away from the sport.",
+      "bad",
+    );
+  }
+  if (s.motivation > 45) s.burnoutWarned = false;
+  if (s.motivation <= 4 && s.phase === "junior" && s.age < 18 && Math.random() < 0.2) {
+    s.motivation = 30;
+    s.attrs.tennis = clamp(s.attrs.tennis - 3, 0, 100);
+    s.fatigue = clamp(s.fatigue - 40, 0, 100);
+    pushLog(s, "You took a month away from the game entirely. Burnout cost you ground.", "bad");
+  }
+}
+
 function playSet(pGame: number): [number, number] {
   let a = 0;
   let b = 0;
