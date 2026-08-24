@@ -341,6 +341,15 @@ export const STAFF_CATALOG: {
       { name: "Tour Mindset Guru", quality: 4, weekly: 1300 },
     ],
   },
+  {
+    role: "Physiotherapist",
+    tiers: [
+      { name: "Clinic Physio (weekends)", quality: 1, weekly: 80 },
+      { name: "Sports Physiotherapist", quality: 2, weekly: 240 },
+      { name: "High Performance Physio", quality: 3, weekly: 600 },
+      { name: "Travelling Tour Physio", quality: 4, weekly: 1400 },
+    ],
+  },
 ];
 
 const FIRST = [
