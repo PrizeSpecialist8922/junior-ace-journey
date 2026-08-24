@@ -52,28 +52,135 @@ export function ageBracket(age: number) {
 
 /* ---------------------------------- pools --------------------------------- */
 
-function buildOntarioPool(): AIPlayer[] {
-  return Array.from({ length: 300 }, (_, i) => ({
+const PLAYSTYLES: Playstyle[] = [
+  "Serve & Volley",
+  "Baseline Grinder",
+  "All-Court",
+  "Counterpuncher",
+];
+const REGIONS = [
+  "Toronto",
+  "Mississauga",
+  "Ottawa",
+  "Hamilton",
+  "London",
+  "Windsor",
+  "Barrie",
+  "Kingston",
+  "Montreal",
+  "Vancouver",
+];
+const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)]!;
+
+function profile(): Pick<AIPlayer, "playstyle" | "hand" | "region" | "seasons" | "injuryWeeks"> {
+  return {
+    playstyle: pick(PLAYSTYLES),
+    hand: Math.random() < 0.14 ? "Left" : "Right",
+    region: pick(REGIONS),
+    seasons: 0,
+    injuryWeeks: 0,
+  };
+}
+
+function newJunior(index: number, age?: number): AIPlayer {
+  const a = age ?? Math.round(clamp(10 + rnd(0, 8), 10, 18));
+  const utr = r2(clamp(11.5 * Math.exp(-index / 90) + rnd(-0.4, 0.4) + 1.6, 1, 13));
+  return {
     name: randomName(),
-    points: Math.round(3200 * Math.exp(-i / 55) + rnd(-40, 40) + 5),
-    utr: r2(clamp(11.5 * Math.exp(-i / 90) + rnd(-0.4, 0.4) + 1.6, 1, 13)),
-    selection: Math.round(Math.max(0, 900 * Math.exp(-i / 30) + rnd(-30, 30))),
-  })).sort((a, b) => b.points - a.points);
+    points: Math.round(3200 * Math.exp(-index / 55) + rnd(-40, 40) + 5),
+    utr,
+    selection: Math.round(Math.max(0, 900 * Math.exp(-index / 30) + rnd(-30, 30))),
+    age: a,
+    phase: "junior",
+    potential: r2(clamp(utr + rnd(0.8, 5.2), 3, 16.2)),
+    peakUtr: utr,
+    ...profile(),
+  };
+}
+
+function newPro(index: number): AIPlayer {
+  const utr = r2(clamp(16.3 - Math.log(index + 1) * 1.05 + rnd(-0.25, 0.25), 9.5, 16.5));
+  return {
+    name: randomName(),
+    points: Math.round(4600 * Math.exp(-index / 58) + rnd(-18, 18) + 3),
+    utr,
+    age: Math.round(clamp(19 + rnd(0, 15), 18, 34)),
+    phase: "pro",
+    potential: r2(clamp(utr + rnd(0, 1.1), 9.5, 16.6)),
+    peakUtr: utr,
+    ...profile(),
+  };
+}
+
+function buildOntarioPool(): AIPlayer[] {
+  return Array.from({ length: 300 }, (_, i) => newJunior(i)).sort((a, b) => b.points - a.points);
 }
 
 function buildAtpPool(): AIPlayer[] {
-  return Array.from({ length: 500 }, (_, i) => ({
-    name: randomName(),
-    points: Math.round(4600 * Math.exp(-i / 58) + rnd(-18, 18) + 3),
-    utr: r2(clamp(16.3 - Math.log(i + 1) * 1.05 + rnd(-0.25, 0.25), 9.5, 16.5)),
-  })).sort((a, b) => b.points - a.points);
+  return Array.from({ length: 500 }, (_, i) => newPro(i)).sort((a, b) => b.points - a.points);
 }
 
+/** Weekly pool movement: point decay, development, injuries. */
 function evolvePool(pool: AIPlayer[]) {
   for (const p of pool) {
-    p.points = Math.max(1, Math.round(p.points * (p.points < 900 ? 0.965 : 0.978) + rnd(-18, 18)));
+    const injured = (p.injuryWeeks ?? 0) > 0;
+    if (injured) p.injuryWeeks = Math.max(0, (p.injuryWeeks ?? 0) - 1);
+    else if (Math.random() < 0.0025) p.injuryWeeks = Math.round(rnd(2, 20));
+
+    const decay = injured ? 0.955 : p.points < 900 ? 0.965 : 0.978;
+    p.points = Math.max(1, Math.round(p.points * decay + (injured ? 0 : rnd(-18, 18))));
+
+    // development toward potential, throttled by age and injury
+    const potential = p.potential ?? p.utr;
+    const age = p.age ?? 20;
+    const growthRate = age < 18 ? 0.02 : age < 24 ? 0.01 : age < 29 ? 0.004 : -0.006;
+    const gap = potential - p.utr;
+    const move = injured ? -0.01 : gap > 0 ? Math.min(gap, growthRate) : growthRate * 0.5;
+    p.utr = r2(clamp(p.utr + move, 1, 16.6));
+    p.peakUtr = Math.max(p.peakUtr ?? 0, p.utr);
   }
   pool.sort((a, b) => b.points - a.points);
+}
+
+/**
+ * Yearly pool turnover: everyone ages, juniors graduate to college or the tour,
+ * veterans decline and retire, and new kids arrive at the bottom of the list.
+ */
+function agePool(pool: AIPlayer[], kind: "junior" | "pro"): string[] {
+  const news: string[] = [];
+  for (let i = pool.length - 1; i >= 0; i--) {
+    const p = pool[i]!;
+    p.age = (p.age ?? 18) + 1;
+    p.seasons = (p.seasons ?? 0) + 1;
+    if (kind === "junior" && p.age > 18) {
+      const goesPro = (p.potential ?? p.utr) >= 13.5 && p.utr >= 12;
+      news.push(
+        goesPro
+          ? `${p.name} skips college and turns professional.`
+          : `${p.name} ages out of juniors and accepts an NCAA scholarship.`,
+      );
+      pool[i] = newJunior(pool.length - 1, 10);
+      continue;
+    }
+    if (kind === "pro" && (p.age > 34 || (p.age > 30 && p.utr < 12.5))) {
+      news.push(`${p.name} retires from the pro tour at ${p.age}.`);
+      pool[i] = newPro(Math.max(120, pool.length - 1));
+      continue;
+    }
+  }
+  pool.sort((a, b) => b.points - a.points);
+  return news.slice(0, 3);
+}
+
+/** Pick a real pool player near a target UTR so draws are filled by the ranked world. */
+function poolOpponent(s: GameState, targetUtr: number): { name: string; utr: number } {
+  const pool = s.phase === "pro" && s.atpPool.length ? s.atpPool : s.ontarioPool;
+  const candidates = pool.filter(
+    (p) => (p.injuryWeeks ?? 0) === 0 && Math.abs(p.utr - targetUtr) < 0.9,
+  );
+  const chosen = candidates.length ? pick(candidates) : null;
+  if (!chosen) return { name: randomName(), utr: targetUtr };
+  return { name: chosen.name, utr: chosen.utr };
 }
 
 /* --------------------------------- ratings -------------------------------- */
