@@ -1058,6 +1058,7 @@ function buildBracket(drawSize: number, matches: MatchResult[], playerName: stri
 }
 
 export function playTournament(s: GameState, offer: TournamentOffer): TournamentRun {
+  ensureBody(s);
   const matches: MatchResult[] = [];
   const log = (t: string, tone = "info") => pushLog(s, t, tone);
   const conditions = rollConditions(offer.surface, offer.venue.indoor);
@@ -1078,11 +1079,13 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
     // round robin / dual match: guaranteed 3 matches, no ranking points
     let wins = 0;
     for (let i = 0; i < 3; i++) {
+      const rrUtr = clamp(offer.fieldUtr + rnd(-0.7, 0.9), 1, 16.5);
+      const rrOpp = poolOpponent(s, rrUtr);
       const m = simulateMatch(
         s,
         `Round Robin ${i + 1}`,
-        randomName(),
-        clamp(offer.fieldUtr + rnd(-0.7, 0.9), 1, 16.5),
+        rrOpp.name,
+        clamp(rrOpp.utr, 1, 16.5),
         offer.surface,
         conditions,
       );
@@ -1104,11 +1107,13 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
   } else {
     if (offer.entry === "qualifying") {
       for (let q = 1; q <= (offer.qualifyingRounds ?? 2); q++) {
+        const qUtr = clamp(offer.fieldUtr - 1.1 + q * 0.25, 1, 16.5);
+        const qOpp = poolOpponent(s, qUtr);
         const qm = simulateMatch(
           s,
           `Qualifying ${q}`,
-          randomName(),
-          clamp(offer.fieldUtr - 1.1 + q * 0.25, 1, 16.5),
+          qOpp.name,
+          clamp(qOpp.utr, 1, 16.5),
           offer.surface,
           conditions,
         );
@@ -1150,12 +1155,13 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
       const oppUtr = clamp(offer.fieldUtr - 1.0 + step * 2.6 + rnd(-0.4, 0.4), 1, 16.5);
       const rival = s.rivals[(s.week + i) % s.rivals.length];
       const useRival = rival && (s.week + i) % 3 === 0;
-      const opponent = useRival ? rival.name : randomName();
+      const fromPool = poolOpponent(s, oppUtr);
+      const opponent = useRival ? rival.name : fromPool.name;
       const m = simulateMatch(
         s,
         names[i]!,
         opponent,
-        useRival ? clamp(rival.utr, 1, 16.5) : oppUtr,
+        useRival ? clamp(rival.utr, 1, 16.5) : clamp(fromPool.utr, 1, 16.5),
         offer.surface,
         conditions,
       );
@@ -1438,6 +1444,21 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
   const rest = s.playedThisWeek ? 4 : 13 + s.attrs.fitness / 12;
   s.fatigue = clamp(s.fatigue - rest + alloc.fitness * 0.9 + alloc.tennis * 0.7, 0, 100);
 
+  // physical load from training, then recovery, injury roll and mental state
+  ensureBody(s);
+  if (!isSidelined(s)) {
+    const trainingLoad = (alloc.tennis * 0.55 + alloc.fitness * 0.7) * (1 - s.attrs.fitness / 300);
+    for (const a of BODY_AREAS) s.bodyLoad[a] = clamp(s.bodyLoad[a] + trainingLoad * rnd(0.6, 1.1), 0, 100);
+  }
+  const restWeek = !s.playedThisWeek && alloc.tennis + alloc.fitness <= 4;
+  recover(s, restWeek);
+  if (!isSidelined(s)) rollInjury(s);
+  if (isSidelined(s)) {
+    // ratings drift while you cannot compete
+    s.utr = r2(clamp(s.utr - 0.012, 1, 16.5));
+  }
+  updateMental(s, s.playedThisWeek, alloc);
+
   if (s.age < 10 && Math.random() < 0.75) {
     pushLog(s, CHILD_LOGS[Math.floor(Math.random() * CHILD_LOGS.length)]!, "info");
     s.attrs.tennis = clamp(s.attrs.tennis + 0.2, 0, 100);
@@ -1499,6 +1520,9 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
     s.rivals.forEach((r) => {
       r.utr = r2(clamp(r.utr + rnd(0.2, 0.65), 1, 16.5));
     });
+    // the opponent world moves on: graduations, pro debuts, retirements
+    for (const line of agePool(s.ontarioPool, "junior")) pushLog(s, line, "info");
+    if (s.atpPool.length) for (const line of agePool(s.atpPool, "pro")) pushLog(s, line, "info");
     if (s.phase === "college" && !s.college.redshirtThisSeason) s.college.seasonsUsed++;
     s.college.redshirtThisSeason = false;
     pushLog(s, `— Season ${s.season} begins. You are now ${s.age} years old. —`, "good");
@@ -1688,6 +1712,13 @@ export function createGame(name: string, hand: Hand, playstyle: Playstyle): Game
     losses: 0,
     titles: 0,
     surfaceForm: { "Indoor Hard": 50, Hard: 50, Clay: 50, Grass: 50 },
+    bodyLoad: { Shoulder: 0, Wrist: 0, Back: 0, Knee: 0 },
+    injury: null,
+    injuryHistory: [],
+    sharpness: 100,
+    confidence: 50,
+    motivation: 80,
+    burnoutWarned: false,
     sponsor: null,
     sponsorReputation: 20,
     racquet: RACQUETS[2]!.name,
