@@ -17,10 +17,13 @@ import {
 } from "./data";
 import type {
   AIPlayer,
+  BodyArea,
   BracketNode,
+  InjurySeverity,
   Conditions,
   GameState,
   Hand,
+  Injury,
   MatchResult,
   Playstyle,
   PointEntry,
@@ -318,9 +321,8 @@ function rollInjury(s: GameState): boolean {
   if (s.injury) return false;
   const risk = injuryRisk(s) / 100;
   if (Math.random() > risk * 0.35) return false;
-  const area = BODY_AREAS.slice()
-    .sort((a, b) => s.bodyLoad[b] - s.bodyLoad[a])
-    .slice(0, 2)[Math.random() < 0.7 ? 0 : 1]!;
+  const ranked: BodyArea[] = BODY_AREAS.slice().sort((a, b) => s.bodyLoad[b] - s.bodyLoad[a]);
+  const area: BodyArea = (Math.random() < 0.7 ? ranked[0] : ranked[1]) ?? "Shoulder";
   const load = s.bodyLoad[area];
   const roll = Math.random();
   const severity: InjurySeverity =
@@ -331,7 +333,7 @@ function rollInjury(s: GameState): boolean {
       : severity === "Strain"
         ? Math.round(rnd(1, 4))
         : Math.round(rnd(1, 2));
-  s.injury = {
+  const injury: Injury = {
     area,
     severity,
     label: INJURY_LABELS[area][severity],
@@ -339,11 +341,12 @@ function rollInjury(s: GameState): boolean {
     weeksTotal: weeks,
     startedAbsWeek: absWeek(s),
   };
+  s.injury = injury;
   s.bodyLoad[area] = clamp(load * 0.7, 0, 100);
   s.confidence = clamp(s.confidence - (severity === "Major" ? 22 : 8), 0, 100);
   s.motivation = clamp(s.motivation - (severity === "Major" ? 14 : 4), 0, 100);
   s.injuryHistory.unshift({
-    label: s.injury.label,
+    label: injury.label,
     area,
     weeks,
     age: s.age,
@@ -352,8 +355,8 @@ function rollInjury(s: GameState): boolean {
   pushLog(
     s,
     severity === "Niggle"
-      ? `Diagnosis: ${s.injury.label}. You can play through it, but not at full level.`
-      : `INJURED — ${s.injury.label}. Out for ${weeks} week${weeks === 1 ? "" : "s"}.`,
+      ? `Diagnosis: ${injury.label}. You can play through it, but not at full level.`
+      : `INJURED — ${injury.label}. Out for ${weeks} week${weeks === 1 ? "" : "s"}.`,
     "bad",
   );
   return true;
@@ -366,25 +369,26 @@ function recover(s: GameState, restWeek: boolean) {
   const drain = (restWeek ? 6.5 : 2.4) + physio * 1.6 + s.attrs.fitness / 45;
   for (const a of BODY_AREAS) s.bodyLoad[a] = clamp(s.bodyLoad[a] - drain, 0, 100);
 
-  if (s.injury) {
-    if (s.injury.severity === "Niggle") {
+  const injury = s.injury;
+  if (injury) {
+    if (injury.severity === "Niggle") {
       if (Math.random() < 0.6 || restWeek) {
-        pushLog(s, `The ${s.injury.label} has settled down.`, "good");
+        pushLog(s, `The ${injury.label} has settled down.`, "good");
         s.injury = null;
       }
     } else {
-      s.injury.weeksOut = Math.max(0, s.injury.weeksOut - 1 - (physio >= 3 && Math.random() < 0.3 ? 1 : 0));
+      injury.weeksOut = Math.max(0, injury.weeksOut - 1 - (physio >= 3 && Math.random() < 0.3 ? 1 : 0));
       for (const a of BODY_AREAS) s.bodyLoad[a] = clamp(s.bodyLoad[a] - 2.5, 0, 100);
       s.sharpness = clamp(s.sharpness - 5.5, 10, 100);
-      if (s.injury.weeksOut <= 0) {
+      if (injury.weeksOut <= 0) {
         pushLog(
           s,
-          `Cleared to compete again after ${s.injury.weeksTotal} weeks (${s.injury.label}). Match sharpness is at ${Math.round(s.sharpness)}%.`,
+          `Cleared to compete again after ${injury.weeksTotal} weeks (${injury.label}). Match sharpness is at ${Math.round(s.sharpness)}%.`,
           "good",
         );
         s.injury = null;
       } else {
-        pushLog(s, `Rehab: ${s.injury.weeksOut} week(s) remaining on the ${s.injury.label}.`, "info");
+        pushLog(s, `Rehab: ${injury.weeksOut} week(s) remaining on the ${injury.label}.`, "info");
       }
     }
   } else if (restWeek) {
