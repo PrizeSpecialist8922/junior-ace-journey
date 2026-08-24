@@ -2,7 +2,21 @@ export type Hand = "Left" | "Right";
 export type Playstyle = "Serve & Volley" | "Baseline Grinder" | "All-Court" | "Counterpuncher";
 export type Wealth = "Working Class" | "Middle Class" | "Affluent";
 export type Phase = "junior" | "college" | "pro" | "retired";
-export type StaffRole = "Private Coach" | "Fitness Trainer" | "Psychologist";
+export type StaffRole = "Private Coach" | "Fitness Trainer" | "Psychologist" | "Physiotherapist";
+
+export type BodyArea = "Shoulder" | "Wrist" | "Back" | "Knee";
+export type InjurySeverity = "Niggle" | "Strain" | "Major";
+
+export type BodyLoad = Record<BodyArea, number>;
+
+export interface Injury {
+  area: BodyArea;
+  severity: InjurySeverity;
+  label: string;
+  weeksOut: number;
+  weeksTotal: number;
+  startedAbsWeek: number;
+}
 
 export type Surface = "Indoor Hard" | "Hard" | "Clay" | "Grass";
 
