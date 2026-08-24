@@ -298,7 +298,7 @@ function addLoad(s: GameState, sets: number, surface: Surface) {
   ensureBody(s);
   const tension = s.stringTension === "High" ? 1.25 : s.stringTension === "Low" ? 0.9 : 1;
   const surfaceMult = surface === "Clay" ? 0.85 : surface === "Grass" ? 0.95 : 1.1;
-  const base = (1.6 + sets * 1.0) * tension * surfaceMult;
+  const base = (2.2 + sets * 1.3) * tension * surfaceMult;
   const durability = 1 - clamp(s.attrs.fitness, 0, 100) / 260; // fit players absorb load better
   s.bodyLoad.Shoulder = clamp(s.bodyLoad.Shoulder + base * 0.9 * durability, 0, 100);
   s.bodyLoad.Wrist = clamp(s.bodyLoad.Wrist + base * 0.7 * durability, 0, 100);
@@ -366,7 +366,7 @@ function rollInjury(s: GameState): boolean {
 function recover(s: GameState, restWeek: boolean) {
   ensureBody(s);
   const physio = physioQuality(s);
-  const drain = (restWeek ? 9 : 4.2) + physio * 2.2 + s.attrs.fitness / 30;
+  const drain = (restWeek ? 8 : 3.1) + physio * 1.8 + s.attrs.fitness / 40;
   for (const a of BODY_AREAS) s.bodyLoad[a] = clamp(s.bodyLoad[a] - drain, 0, 100);
 
   const injury = s.injury;
