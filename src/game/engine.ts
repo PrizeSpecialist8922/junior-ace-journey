@@ -322,6 +322,19 @@ export function simulateMatch(
   const formGain = 0.4 + (won ? 0.3 : 0.1) + Math.max(0, (oppUtr - s.utr) / 10);
   s.surfaceForm[surface] = clamp((s.surfaceForm[surface] ?? 50) + formGain, 0, 100);
 
+  // match sharpness rebuilds with competitive reps
+  s.sharpness = clamp((s.sharpness ?? 100) + 6 + sets.length, 0, 100);
+
+  // confidence swings: upsets are worth more, bad losses hurt more
+  const gap = oppUtr - s.utr;
+  const swing = won ? 4 + Math.max(0, gap) * 3.5 : -(4 + Math.max(0, -gap) * 3.5);
+  s.confidence = clamp((s.confidence ?? 50) + swing, 0, 100);
+
+  // physical load: long matches, hard courts and tight strings punish the body
+  addLoad(s, sets.length, surface);
+
+  return {
+
   return {
     round,
     opponent: oppName,
