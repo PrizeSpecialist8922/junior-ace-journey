@@ -1,45 +1,48 @@
-# Next Realism Layer: Body, Mind, Media & Season Planning
+# One Big Realism Phase: Living Opponent World, Injuries, and the College Safety Net
 
-Reviewed the current build: surfaces, venues, conditions, brackets, rivals, national team, college seasons, sponsors, equipment and year review are all in. The biggest missing realism systems are the player's body, their head, the outside world, and long-term planning.
+Everything below ships in a single pass.
 
-## Phase 1 — Injuries, Load & Recovery
+## 1 — Deeper, Living Opponent Pool
 
-- Track a per-body-part load model (shoulder, wrist, back, knee) that rises with matches, hard-court weeks and high string tension, and falls with rest weeks and a Physio staff hire.
-- Injury roll each week scaled by fatigue, age, load and fitness. Outcomes: niggle (play at reduced level), strain (1-4 weeks out), major (8-26 weeks out plus UTR/ranking decay while inactive).
-- Injured weeks block tournament entry, force rehab training allocation, and log a recovery timeline in the feed.
-- Add a Physio to the staff market and a "Manage Load" panel in Training showing each body part and injury risk.
+- Give every pool player a real profile: age, playstyle, hand, home region, potential ceiling, development curve, and a career phase (junior / college / pro / retired).
+- Advance the pool weekly: players improve or plateau by age and potential, pick up their own injuries, go to college, turn pro, fade, and retire. Retirees are replaced by new 10-year-olds so the top of the Ontario and ATP lists changes believably across a decade.
+- A named junior cohort grows up alongside the player and feeds the existing rivals system instead of random one-off names.
+- Rival detail view: head-to-head record, surface splits, their current rank/UTR trajectory, and a career timeline.
+- Draws pull from this pool by rank/UTR band, so opponents in a Provincial draw are the same people you see on the rankings page.
 
-## Phase 2 — Mental State, Burnout & Confidence
+## 2 — Injuries, Load & Recovery
 
-- Add `confidence` (short-term, moves with wins/losses and close-match outcomes) and `motivation` (long-term, drained by heavy schedules, bad results, no rest weeks).
-- Confidence feeds directly into match simulation on tiebreaks and deciding sets; low motivation slows all training gains and can trigger a "considering quitting" event in the juniors.
-- Rest/vacation weeks and the Psychologist restore motivation. Junior burnout is a real career risk at 5/5 difficulty.
+- Body-load model per area (shoulder, wrist, back, knee). Load rises with matches, back-to-back weeks, hard courts, and high string tension; falls with rest, low-intensity training, and a Physio on staff.
+- Weekly injury roll scaled by load, fatigue, age, and fitness. Outcomes:
+  - Niggle — play through at reduced level.
+  - Strain — 1-4 weeks out.
+  - Major — 8-26 weeks out, with ranking points expiring untouched and UTR decay while inactive.
+- Injured weeks block tournament entry, force rehab allocation in Training, and show a recovery timeline in the feed.
+- Add Physio to the staff market. New "Load & Health" panel: per-area load bars, current injury, risk readout, and a rest action.
+- Comeback effect: after a long layoff, match sharpness starts low and rebuilds over the first few events.
 
-## Phase 3 — Media, Reputation & Narrative Events
+## 3 — College Fallback From the Pro Tour
 
-- Post-match press: interview choices (humble / cocky / blame conditions) that shift `sponsorReputation`, rival animosity and confidence.
-- Weekly news headlines generated from the actual sim (upsets, streaks, rival head-to-heads, national team snubs).
-- Random life events tied to age and phase: school exams, family finances, coach falling out, academy invite, agent offers.
+- NCAA eligibility clock modeled properly: five-year window, four seasons of competition, and eligibility burned by prize money earned as a pro.
+- A pro player who is struggling (rank stalled, bank low, still inside the eligibility window and age cap) gets a "College Fallback" offer: divisions available are recomputed from current UTR.
+- Taking it moves phase back to `college`, resets the weekly economy to a scholarship, and preserves career stats and trophies.
+- Leaving college again for the tour stays possible, so the fork can be crossed more than once while eligibility remains.
 
-## Phase 4 — Season Planner & Goals
+## 4 — What Else Goes In This Phase
 
-- A Season Planner view: 52-week grid where the player pencils in target events, training blocks and rest weeks for the year ahead.
-- Season goals set at the start of each year (ranking target, title target, selection points) with sponsor/coach reactions when hit or missed.
-- Peaking mechanic: a planned training block before a target event gives a form bonus; a chaotic schedule gives fatigue and injury risk.
-
-## Phase 5 — Deeper Opponent World
-
-- Persistent AI career arcs: pool players progress, get injured, go to college, turn pro, retire — so the names at the top of the Ontario and ATP lists evolve believably over a decade.
-- Named junior cohort that grows up alongside the player, feeding the existing rivals system instead of random names.
-- Head-to-head pages per rival with surface splits and career timeline.
+- **Confidence & motivation:** confidence swings with wins, close losses, and upsets, and feeds tiebreak/deciding-set outcomes. Motivation drains from heavy schedules and bad runs, slows training gains, and can trigger a junior burnout crossroads. Rest weeks and the Psychologist restore it.
+- **Press & reputation:** post-tournament interview choices (humble / cocky / blame conditions) that shift sponsor reputation, rival animosity, and confidence.
+- **Headlines feed:** weekly generated news from the actual sim — upsets, streaks, rival results, injury news, retirements in the pool.
+- **Season goals:** each year opens with ranking/title/selection targets; hitting or missing them affects sponsor reputation and coach relations.
 
 ## Technical notes
 
-- New `GameState` fields: `bodyLoad`, `injury`, `confidence`, `motivation`, `plan` (week -> intent), `goals`, `headlines`; all added defensively in `store.ts` `migrate` so existing saves keep working.
-- Injury/mental modifiers plug into the existing `simulateMatch` edge stack next to `surfaceForm` and `conditionsEdge`.
-- AI career arcs advance inside `nextWeek`'s existing weekly pool decay pass.
-- New UI: "Load & Health" panel in Training, a `SeasonPlanner` tab, a press-conference modal after tournament runs, headlines strip on the Dashboard.
+- New `GameState` fields: `bodyLoad`, `injury`, `sharpness`, `confidence`, `motivation`, `headlines`, `goals`, `eligibility`; pool players gain the richer profile shape. All added defensively in `store.ts` `migrate` so existing saves load.
+- Injury, sharpness, and confidence modifiers slot into the existing `simulateMatch` edge stack alongside `surfaceForm` and `conditionsEdge`.
+- Pool aging/retirement and the injury roll run inside `nextWeek`'s existing weekly pass.
+- `listTournaments` and `playTournament` gain injury gating and pool-sourced opponents.
+- New UI: "Load & Health" panel in Training, rival detail view, headlines strip and goals card on the Dashboard, press-conference prompt after a tournament run, College Fallback card when the offer is live.
 
-## Order of work
+## Out of scope
 
-Phase 1 and 2 land together (they share the weekly roll), then Phase 4 planner, then Phase 3 media, then Phase 5.
+Multiplayer, cloud saves, live weather or real rankings sync.
