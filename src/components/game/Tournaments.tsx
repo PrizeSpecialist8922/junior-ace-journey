@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { listTournaments, playTournament } from "@/game/engine";
+import { isSidelined, listTournaments, playTournament } from "@/game/engine";
 import type { BracketNode, GameState, Surface, TournamentRun } from "@/game/types";
 import { ActionButton, Bar, Chip, Panel } from "./ui";
 import { cn } from "@/lib/utils";
@@ -69,6 +69,7 @@ export function Tournaments({
   update: (fn: (d: GameState) => void) => void;
 }) {
   const offers = useMemo(() => listTournaments(s), [s]);
+  const sidelined = isSidelined(s);
   const [openRun, setOpenRun] = useState<TournamentRun | null>(s.runs[0] ?? null);
   const latest = s.runs[0] ?? null;
   const shown = openRun && s.runs.some((r) => r.id === openRun.id) ? openRun : latest;
@@ -103,7 +104,11 @@ export function Tournaments({
           title={`Week ${s.week} Calendar`}
           subtitle="Pick one eligible event and play now. Travel is charged once, at play time."
           right={
-            s.playedThisWeek ? (
+            sidelined && s.injury ? (
+              <Chip tone="bad">
+                Injured — {s.injury.label}, {s.injury.weeksOut}w out
+              </Chip>
+            ) : s.playedThisWeek ? (
               <Chip tone="gold">Already competed this week</Chip>
             ) : (
               <Chip tone="emerald">Entry open</Chip>
@@ -155,7 +160,9 @@ export function Tournaments({
                     </div>
                   </div>
                   <ActionButton
-                    disabled={!o.eligible || s.playedThisWeek || s.bank < o.travelCost}
+                    disabled={
+                      !o.eligible || s.playedThisWeek || sidelined || s.bank < o.travelCost
+                    }
                     onClick={() =>
                       update((d) => {
                         const run = playTournament(d, o);

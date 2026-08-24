@@ -107,7 +107,7 @@ export function Training({
           title="Load & Health"
           subtitle="Matches and heavy training load the body. Rest and a physio bring it down."
           right={
-            <Chip tone={risk > 55 ? "danger" : risk > 30 ? "gold" : "emerald"}>
+            <Chip tone={risk > 55 ? "bad" : risk > 30 ? "gold" : "emerald"}>
               Injury risk {risk}%
             </Chip>
           }
