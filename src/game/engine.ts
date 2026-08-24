@@ -334,8 +334,6 @@ export function simulateMatch(
   addLoad(s, sets.length, surface);
 
   return {
-
-  return {
     round,
     opponent: oppName,
     oppUtr: r2(oppUtr),
