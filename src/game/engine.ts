@@ -298,7 +298,7 @@ function addLoad(s: GameState, sets: number, surface: Surface) {
   ensureBody(s);
   const tension = s.stringTension === "High" ? 1.25 : s.stringTension === "Low" ? 0.9 : 1;
   const surfaceMult = surface === "Clay" ? 0.85 : surface === "Grass" ? 0.95 : 1.1;
-  const base = (2.6 + sets * 1.5) * tension * surfaceMult;
+  const base = (1.6 + sets * 1.0) * tension * surfaceMult;
   const durability = 1 - clamp(s.attrs.fitness, 0, 100) / 260; // fit players absorb load better
   s.bodyLoad.Shoulder = clamp(s.bodyLoad.Shoulder + base * 0.9 * durability, 0, 100);
   s.bodyLoad.Wrist = clamp(s.bodyLoad.Wrist + base * 0.7 * durability, 0, 100);
@@ -366,7 +366,7 @@ function rollInjury(s: GameState): boolean {
 function recover(s: GameState, restWeek: boolean) {
   ensureBody(s);
   const physio = physioQuality(s);
-  const drain = (restWeek ? 6.5 : 2.4) + physio * 1.6 + s.attrs.fitness / 45;
+  const drain = (restWeek ? 9 : 4.2) + physio * 2.2 + s.attrs.fitness / 30;
   for (const a of BODY_AREAS) s.bodyLoad[a] = clamp(s.bodyLoad[a] - drain, 0, 100);
 
   const injury = s.injury;
@@ -408,9 +408,9 @@ function updateMental(s: GameState, playedThisWeek: boolean, alloc: { tennis: nu
   // confidence drifts back to the middle
   s.confidence = clamp(s.confidence + (50 - s.confidence) * 0.07 + psych * 1.5, 0, 100);
 
-  const grind = playedThisWeek ? 2.2 : 0;
-  const heavyTraining = Math.max(0, alloc.tennis + alloc.fitness - 7) * 0.5;
-  const restBonus = !playedThisWeek && alloc.tennis + alloc.fitness <= 4 ? 4.5 : 0;
+  const grind = playedThisWeek ? 1.6 : 0;
+  const heavyTraining = Math.max(0, alloc.tennis + alloc.fitness - 8) * 0.5;
+  const restBonus = !playedThisWeek ? (alloc.tennis + alloc.fitness <= 4 ? 4.5 : 1.4) : 0;
   s.motivation = clamp(
     s.motivation - grind - heavyTraining + restBonus + psych * 2.2 + (s.confidence - 50) / 40,
     0,
@@ -1447,7 +1447,7 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
   // physical load from training, then recovery, injury roll and mental state
   ensureBody(s);
   if (!isSidelined(s)) {
-    const trainingLoad = (alloc.tennis * 0.55 + alloc.fitness * 0.7) * (1 - s.attrs.fitness / 300);
+    const trainingLoad = (alloc.tennis * 0.28 + alloc.fitness * 0.38) * (1 - s.attrs.fitness / 300);
     for (const a of BODY_AREAS) s.bodyLoad[a] = clamp(s.bodyLoad[a] + trainingLoad * rnd(0.6, 1.1), 0, 100);
   }
   const restWeek = !s.playedThisWeek && alloc.tennis + alloc.fitness <= 4;
