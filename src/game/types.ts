@@ -2,7 +2,21 @@ export type Hand = "Left" | "Right";
 export type Playstyle = "Serve & Volley" | "Baseline Grinder" | "All-Court" | "Counterpuncher";
 export type Wealth = "Working Class" | "Middle Class" | "Affluent";
 export type Phase = "junior" | "college" | "pro" | "retired";
-export type StaffRole = "Private Coach" | "Fitness Trainer" | "Psychologist";
+export type StaffRole = "Private Coach" | "Fitness Trainer" | "Psychologist" | "Physiotherapist";
+
+export type BodyArea = "Shoulder" | "Wrist" | "Back" | "Knee";
+export type InjurySeverity = "Niggle" | "Strain" | "Major";
+
+export type BodyLoad = Record<BodyArea, number>;
+
+export interface Injury {
+  area: BodyArea;
+  severity: InjurySeverity;
+  label: string;
+  weeksOut: number;
+  weeksTotal: number;
+  startedAbsWeek: number;
+}
 
 export type Surface = "Indoor Hard" | "Hard" | "Clay" | "Grass";
 
@@ -174,6 +188,16 @@ export interface AIPlayer {
   points: number;
   utr: number;
   selection?: number;
+  /** deeper profile — the pool is a living world */
+  age?: number;
+  potential?: number; // UTR ceiling this player can reach
+  phase?: "junior" | "college" | "pro" | "retired";
+  playstyle?: Playstyle;
+  hand?: Hand;
+  region?: string;
+  injuryWeeks?: number;
+  peakUtr?: number;
+  seasons?: number;
 }
 
 export interface GameState {
@@ -214,6 +238,17 @@ export interface GameState {
   losses: number;
   titles: number;
   surfaceForm: SurfaceForm;
+  /** physical load per body area (0-100) */
+  bodyLoad: BodyLoad;
+  injury: Injury | null;
+  injuryHistory: { label: string; area: BodyArea; weeks: number; age: number; season: number }[];
+  /** match sharpness 0-100, drops during layoffs, rebuilds with matches */
+  sharpness: number;
+  /** short-term confidence 0-100 */
+  confidence: number;
+  /** long-term motivation 0-100; burnout risk when low */
+  motivation: number;
+  burnoutWarned: boolean;
   sponsor: SponsorDeal | null;
   sponsorReputation: number;
   racquet: string;

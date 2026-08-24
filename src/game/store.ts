@@ -7,6 +7,20 @@ function migrate(state: GameState): GameState {
   if (!state.surfaceForm) {
     state.surfaceForm = { "Indoor Hard": 50, Hard: 50, Clay: 50, Grass: 50 };
   }
+  state.bodyLoad ??= { Shoulder: 0, Wrist: 0, Back: 0, Knee: 0 };
+  state.injury ??= null;
+  state.injuryHistory ??= [];
+  state.sharpness ??= 100;
+  state.confidence ??= 50;
+  state.motivation ??= 80;
+  state.burnoutWarned ??= false;
+  for (const p of [...state.ontarioPool, ...state.atpPool]) {
+    p.age ??= 16;
+    p.phase ??= "junior";
+    p.potential ??= p.utr + 1.5;
+    p.injuryWeeks ??= 0;
+    p.seasons ??= 0;
+  }
   state.sponsor ??= null;
   state.sponsorReputation ??= 20;
   state.racquet ??= "Vertex Tour";

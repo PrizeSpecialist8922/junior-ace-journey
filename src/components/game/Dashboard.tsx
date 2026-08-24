@@ -187,6 +187,21 @@ export function Dashboard({
         <Panel title="Condition & Attributes" className="lg:col-span-1">
           <div className="space-y-3">
             <Bar label="Fatigue" value={s.fatigue} tone={s.fatigue > 65 ? "warn" : "emerald"} />
+            <Bar
+              label="Match Sharpness"
+              value={s.sharpness ?? 100}
+              tone={(s.sharpness ?? 100) < 60 ? "warn" : "emerald"}
+            />
+            <Bar
+              label="Confidence"
+              value={s.confidence ?? 50}
+              tone={(s.confidence ?? 50) < 35 ? "warn" : "emerald"}
+            />
+            <Bar
+              label="Motivation"
+              value={s.motivation ?? 80}
+              tone={(s.motivation ?? 80) < 30 ? "warn" : "emerald"}
+            />
             <Bar label="Tennis Skill" value={s.attrs.tennis} />
             <Bar label="Fitness" value={s.attrs.fitness} />
             <Bar label="Mental" value={s.attrs.mental} />

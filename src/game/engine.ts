@@ -17,10 +17,13 @@ import {
 } from "./data";
 import type {
   AIPlayer,
+  BodyArea,
   BracketNode,
+  InjurySeverity,
   Conditions,
   GameState,
   Hand,
+  Injury,
   MatchResult,
   Playstyle,
   PointEntry,
@@ -52,28 +55,135 @@ export function ageBracket(age: number) {
 
 /* ---------------------------------- pools --------------------------------- */
 
-function buildOntarioPool(): AIPlayer[] {
-  return Array.from({ length: 300 }, (_, i) => ({
+const PLAYSTYLES: Playstyle[] = [
+  "Serve & Volley",
+  "Baseline Grinder",
+  "All-Court",
+  "Counterpuncher",
+];
+const REGIONS = [
+  "Toronto",
+  "Mississauga",
+  "Ottawa",
+  "Hamilton",
+  "London",
+  "Windsor",
+  "Barrie",
+  "Kingston",
+  "Montreal",
+  "Vancouver",
+];
+const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)]!;
+
+function profile(): Pick<AIPlayer, "playstyle" | "hand" | "region" | "seasons" | "injuryWeeks"> {
+  return {
+    playstyle: pick(PLAYSTYLES),
+    hand: Math.random() < 0.14 ? "Left" : "Right",
+    region: pick(REGIONS),
+    seasons: 0,
+    injuryWeeks: 0,
+  };
+}
+
+function newJunior(index: number, age?: number): AIPlayer {
+  const a = age ?? Math.round(clamp(10 + rnd(0, 8), 10, 18));
+  const utr = r2(clamp(11.5 * Math.exp(-index / 90) + rnd(-0.4, 0.4) + 1.6, 1, 13));
+  return {
     name: randomName(),
-    points: Math.round(3200 * Math.exp(-i / 55) + rnd(-40, 40) + 5),
-    utr: r2(clamp(11.5 * Math.exp(-i / 90) + rnd(-0.4, 0.4) + 1.6, 1, 13)),
-    selection: Math.round(Math.max(0, 900 * Math.exp(-i / 30) + rnd(-30, 30))),
-  })).sort((a, b) => b.points - a.points);
+    points: Math.round(3200 * Math.exp(-index / 55) + rnd(-40, 40) + 5),
+    utr,
+    selection: Math.round(Math.max(0, 900 * Math.exp(-index / 30) + rnd(-30, 30))),
+    age: a,
+    phase: "junior",
+    potential: r2(clamp(utr + rnd(0.8, 5.2), 3, 16.2)),
+    peakUtr: utr,
+    ...profile(),
+  };
+}
+
+function newPro(index: number): AIPlayer {
+  const utr = r2(clamp(16.3 - Math.log(index + 1) * 1.05 + rnd(-0.25, 0.25), 9.5, 16.5));
+  return {
+    name: randomName(),
+    points: Math.round(4600 * Math.exp(-index / 58) + rnd(-18, 18) + 3),
+    utr,
+    age: Math.round(clamp(19 + rnd(0, 15), 18, 34)),
+    phase: "pro",
+    potential: r2(clamp(utr + rnd(0, 1.1), 9.5, 16.6)),
+    peakUtr: utr,
+    ...profile(),
+  };
+}
+
+function buildOntarioPool(): AIPlayer[] {
+  return Array.from({ length: 300 }, (_, i) => newJunior(i)).sort((a, b) => b.points - a.points);
 }
 
 function buildAtpPool(): AIPlayer[] {
-  return Array.from({ length: 500 }, (_, i) => ({
-    name: randomName(),
-    points: Math.round(4600 * Math.exp(-i / 58) + rnd(-18, 18) + 3),
-    utr: r2(clamp(16.3 - Math.log(i + 1) * 1.05 + rnd(-0.25, 0.25), 9.5, 16.5)),
-  })).sort((a, b) => b.points - a.points);
+  return Array.from({ length: 500 }, (_, i) => newPro(i)).sort((a, b) => b.points - a.points);
 }
 
+/** Weekly pool movement: point decay, development, injuries. */
 function evolvePool(pool: AIPlayer[]) {
   for (const p of pool) {
-    p.points = Math.max(1, Math.round(p.points * (p.points < 900 ? 0.965 : 0.978) + rnd(-18, 18)));
+    const injured = (p.injuryWeeks ?? 0) > 0;
+    if (injured) p.injuryWeeks = Math.max(0, (p.injuryWeeks ?? 0) - 1);
+    else if (Math.random() < 0.0025) p.injuryWeeks = Math.round(rnd(2, 20));
+
+    const decay = injured ? 0.955 : p.points < 900 ? 0.965 : 0.978;
+    p.points = Math.max(1, Math.round(p.points * decay + (injured ? 0 : rnd(-18, 18))));
+
+    // development toward potential, throttled by age and injury
+    const potential = p.potential ?? p.utr;
+    const age = p.age ?? 20;
+    const growthRate = age < 18 ? 0.02 : age < 24 ? 0.01 : age < 29 ? 0.004 : -0.006;
+    const gap = potential - p.utr;
+    const move = injured ? -0.01 : gap > 0 ? Math.min(gap, growthRate) : growthRate * 0.5;
+    p.utr = r2(clamp(p.utr + move, 1, 16.6));
+    p.peakUtr = Math.max(p.peakUtr ?? 0, p.utr);
   }
   pool.sort((a, b) => b.points - a.points);
+}
+
+/**
+ * Yearly pool turnover: everyone ages, juniors graduate to college or the tour,
+ * veterans decline and retire, and new kids arrive at the bottom of the list.
+ */
+function agePool(pool: AIPlayer[], kind: "junior" | "pro"): string[] {
+  const news: string[] = [];
+  for (let i = pool.length - 1; i >= 0; i--) {
+    const p = pool[i]!;
+    p.age = (p.age ?? 18) + 1;
+    p.seasons = (p.seasons ?? 0) + 1;
+    if (kind === "junior" && p.age > 18) {
+      const goesPro = (p.potential ?? p.utr) >= 13.5 && p.utr >= 12;
+      news.push(
+        goesPro
+          ? `${p.name} skips college and turns professional.`
+          : `${p.name} ages out of juniors and accepts an NCAA scholarship.`,
+      );
+      pool[i] = newJunior(pool.length - 1, 10);
+      continue;
+    }
+    if (kind === "pro" && (p.age > 34 || (p.age > 30 && p.utr < 12.5))) {
+      news.push(`${p.name} retires from the pro tour at ${p.age}.`);
+      pool[i] = newPro(Math.max(120, pool.length - 1));
+      continue;
+    }
+  }
+  pool.sort((a, b) => b.points - a.points);
+  return news.slice(0, 3);
+}
+
+/** Pick a real pool player near a target UTR so draws are filled by the ranked world. */
+function poolOpponent(s: GameState, targetUtr: number): { name: string; utr: number } {
+  const pool = s.phase === "pro" && s.atpPool.length ? s.atpPool : s.ontarioPool;
+  const candidates = pool.filter(
+    (p) => (p.injuryWeeks ?? 0) === 0 && Math.abs(p.utr - targetUtr) < 0.9,
+  );
+  const chosen = candidates.length ? pick(candidates) : null;
+  if (!chosen) return { name: randomName(), utr: targetUtr };
+  return { name: chosen.name, utr: chosen.utr };
 }
 
 /* --------------------------------- ratings -------------------------------- */
@@ -144,6 +254,187 @@ export function rollConditions(surface: Surface, indoor: boolean): Conditions {
   return { tempC, windKph, humidity, description };
 }
 
+/* ------------------------- body load & injury engine ----------------------- */
+
+export const BODY_AREAS: BodyArea[] = ["Shoulder", "Wrist", "Back", "Knee"];
+
+const INJURY_LABELS: Record<BodyArea, Record<InjurySeverity, string>> = {
+  Shoulder: {
+    Niggle: "sore rotator cuff",
+    Strain: "rotator cuff tendinitis",
+    Major: "labral tear in the shoulder",
+  },
+  Wrist: {
+    Niggle: "tight wrist extensor",
+    Strain: "wrist tendon strain",
+    Major: "torn wrist ligament",
+  },
+  Back: {
+    Niggle: "stiff lower back",
+    Strain: "lumbar muscle strain",
+    Major: "stress fracture in the lower back",
+  },
+  Knee: {
+    Niggle: "achy patellar tendon",
+    Strain: "patellar tendinitis",
+    Major: "meniscus tear",
+  },
+};
+
+export function physioQuality(s: GameState) {
+  return s.staff.filter((x) => x.role === "Physiotherapist").reduce((n, x) => Math.max(n, x.quality), 0);
+}
+
+function ensureBody(s: GameState) {
+  s.bodyLoad ??= { Shoulder: 0, Wrist: 0, Back: 0, Knee: 0 };
+  s.injuryHistory ??= [];
+  s.sharpness ??= 100;
+  s.confidence ??= 50;
+  s.motivation ??= 75;
+}
+
+/** Load added by a match: sets played, surface, string tension. */
+function addLoad(s: GameState, sets: number, surface: Surface) {
+  ensureBody(s);
+  const tension = s.stringTension === "High" ? 1.25 : s.stringTension === "Low" ? 0.9 : 1;
+  const surfaceMult = surface === "Clay" ? 0.85 : surface === "Grass" ? 0.95 : 1.1;
+  const base = (2.2 + sets * 1.3) * tension * surfaceMult;
+  const durability = 1 - clamp(s.attrs.fitness, 0, 100) / 260; // fit players absorb load better
+  s.bodyLoad.Shoulder = clamp(s.bodyLoad.Shoulder + base * 0.9 * durability, 0, 100);
+  s.bodyLoad.Wrist = clamp(s.bodyLoad.Wrist + base * 0.7 * durability, 0, 100);
+  s.bodyLoad.Back = clamp(s.bodyLoad.Back + base * 0.85 * durability, 0, 100);
+  s.bodyLoad.Knee = clamp(s.bodyLoad.Knee + base * (surface === "Clay" ? 0.7 : 1.05) * durability, 0, 100);
+}
+
+export function injuryRisk(s: GameState) {
+  ensureBody(s);
+  const worst = Math.max(...BODY_AREAS.map((a) => s.bodyLoad[a]));
+  const ageFactor = s.age >= 28 ? (s.age - 27) * 0.6 : 0;
+  const raw =
+    worst * 0.22 + s.fatigue * 0.12 + ageFactor - clamp(s.attrs.fitness, 0, 100) * 0.06 - physioQuality(s) * 1.8;
+  return clamp(Math.round(raw), 0, 90);
+}
+
+/** Weekly injury roll. Returns true if a new injury was suffered. */
+function rollInjury(s: GameState): boolean {
+  ensureBody(s);
+  if (s.injury) return false;
+  const risk = injuryRisk(s) / 100;
+  if (Math.random() > risk * 0.35) return false;
+  const ranked: BodyArea[] = BODY_AREAS.slice().sort((a, b) => s.bodyLoad[b] - s.bodyLoad[a]);
+  const area: BodyArea = (Math.random() < 0.7 ? ranked[0] : ranked[1]) ?? "Shoulder";
+  const load = s.bodyLoad[area];
+  const roll = Math.random();
+  const severity: InjurySeverity =
+    load > 78 && roll < 0.3 ? "Major" : load > 55 || roll < 0.55 ? "Strain" : "Niggle";
+  const weeks =
+    severity === "Major"
+      ? Math.round(rnd(8, 26))
+      : severity === "Strain"
+        ? Math.round(rnd(1, 4))
+        : Math.round(rnd(1, 2));
+  const injury: Injury = {
+    area,
+    severity,
+    label: INJURY_LABELS[area][severity],
+    weeksOut: severity === "Niggle" ? 0 : weeks,
+    weeksTotal: weeks,
+    startedAbsWeek: absWeek(s),
+  };
+  s.injury = injury;
+  s.bodyLoad[area] = clamp(load * 0.7, 0, 100);
+  s.confidence = clamp(s.confidence - (severity === "Major" ? 22 : 8), 0, 100);
+  s.motivation = clamp(s.motivation - (severity === "Major" ? 14 : 4), 0, 100);
+  s.injuryHistory.unshift({
+    label: injury.label,
+    area,
+    weeks,
+    age: s.age,
+    season: s.season,
+  });
+  pushLog(
+    s,
+    severity === "Niggle"
+      ? `Diagnosis: ${injury.label}. You can play through it, but not at full level.`
+      : `INJURED — ${injury.label}. Out for ${weeks} week${weeks === 1 ? "" : "s"}.`,
+    "bad",
+  );
+  return true;
+}
+
+/** Weekly recovery: load drains, injuries count down, sharpness fades in layoffs. */
+function recover(s: GameState, restWeek: boolean) {
+  ensureBody(s);
+  const physio = physioQuality(s);
+  const drain = (restWeek ? 8 : 3.1) + physio * 1.8 + s.attrs.fitness / 40;
+  for (const a of BODY_AREAS) s.bodyLoad[a] = clamp(s.bodyLoad[a] - drain, 0, 100);
+
+  const injury = s.injury;
+  if (injury) {
+    if (injury.severity === "Niggle") {
+      if (Math.random() < 0.6 || restWeek) {
+        pushLog(s, `The ${injury.label} has settled down.`, "good");
+        s.injury = null;
+      }
+    } else {
+      injury.weeksOut = Math.max(0, injury.weeksOut - 1 - (physio >= 3 && Math.random() < 0.3 ? 1 : 0));
+      for (const a of BODY_AREAS) s.bodyLoad[a] = clamp(s.bodyLoad[a] - 2.5, 0, 100);
+      s.sharpness = clamp(s.sharpness - 5.5, 10, 100);
+      if (injury.weeksOut <= 0) {
+        pushLog(
+          s,
+          `Cleared to compete again after ${injury.weeksTotal} weeks (${injury.label}). Match sharpness is at ${Math.round(s.sharpness)}%.`,
+          "good",
+        );
+        s.injury = null;
+      } else {
+        pushLog(s, `Rehab: ${injury.weeksOut} week(s) remaining on the ${injury.label}.`, "info");
+      }
+    }
+  } else if (restWeek) {
+    s.sharpness = clamp(s.sharpness - 1.2, 20, 100);
+  }
+}
+
+export function isSidelined(s: GameState) {
+  return !!s.injury && s.injury.weeksOut > 0;
+}
+
+/* ------------------------------ mental state ------------------------------ */
+
+function updateMental(s: GameState, playedThisWeek: boolean, alloc: { tennis: number; fitness: number }) {
+  ensureBody(s);
+  const psych = staffMultiplier(s, "Psychologist") - 1; // 0 .. 1.1
+  // confidence drifts back to the middle
+  s.confidence = clamp(s.confidence + (50 - s.confidence) * 0.07 + psych * 1.5, 0, 100);
+
+  const grind = playedThisWeek ? 1.6 : 0;
+  const heavyTraining = Math.max(0, alloc.tennis + alloc.fitness - 8) * 0.5;
+  const restBonus = !playedThisWeek ? (alloc.tennis + alloc.fitness <= 4 ? 4.5 : 1.4) : 0;
+  s.motivation = clamp(
+    s.motivation - grind - heavyTraining + restBonus + psych * 2.2 + (s.confidence - 50) / 40,
+    0,
+    100,
+  );
+  if (isSidelined(s)) s.motivation = clamp(s.motivation - 1.5, 0, 100);
+
+  if (s.motivation < 20 && !s.burnoutWarned) {
+    s.burnoutWarned = true;
+    pushLog(
+      s,
+      "BURNOUT WARNING: you are running on empty. Rest weeks or a psychologist, or you may walk away from the sport.",
+      "bad",
+    );
+  }
+  if (s.motivation > 45) s.burnoutWarned = false;
+  if (s.motivation <= 4 && s.phase === "junior" && s.age < 18 && Math.random() < 0.2) {
+    s.motivation = 30;
+    s.attrs.tennis = clamp(s.attrs.tennis - 3, 0, 100);
+    s.fatigue = clamp(s.fatigue - 40, 0, 100);
+    pushLog(s, "You took a month away from the game entirely. Burnout cost you ground.", "bad");
+  }
+}
+
 function playSet(pGame: number): [number, number] {
   let a = 0;
   let b = 0;
@@ -168,10 +459,19 @@ export function simulateMatch(
   const fatiguePenalty = (s.fatigue / 100) * 1.2;
   const mentalBonus = (s.attrs.mental / 100) * 0.5;
   const form = s.surfaceForm[surface] ?? 50;
+  // sharpness (match rust after a layoff), confidence and playing hurt all bite
+  const sharpnessPenalty = ((100 - (s.sharpness ?? 100)) / 100) * 0.7;
+  const confidenceEdge = (((s.confidence ?? 50) - 50) / 100) * 0.55;
+  const motivationEdge = (((s.motivation ?? 70) - 60) / 100) * 0.25;
+  const niggle = s.injury && s.injury.severity === "Niggle" ? 0.55 : 0;
   const eff =
     s.utr -
     fatiguePenalty +
-    mentalBonus +
+    mentalBonus -
+    sharpnessPenalty +
+    confidenceEdge +
+    motivationEdge -
+    niggle +
     styleEdge(s.playstyle, oppUtr, s.utr, surface) +
     conditionsEdge(form, conditions, s.attrs.fitness, s.playstyle);
   const p = 1 / (1 + Math.pow(10, (oppUtr - eff) / 2.2));
@@ -205,6 +505,17 @@ export function simulateMatch(
   // surface form improves with competitive reps
   const formGain = 0.4 + (won ? 0.3 : 0.1) + Math.max(0, (oppUtr - s.utr) / 10);
   s.surfaceForm[surface] = clamp((s.surfaceForm[surface] ?? 50) + formGain, 0, 100);
+
+  // match sharpness rebuilds with competitive reps
+  s.sharpness = clamp((s.sharpness ?? 100) + 6 + sets.length, 0, 100);
+
+  // confidence swings: upsets are worth more, bad losses hurt more
+  const gap = oppUtr - s.utr;
+  const swing = won ? 4 + Math.max(0, gap) * 3.5 : -(4 + Math.max(0, -gap) * 3.5);
+  s.confidence = clamp((s.confidence ?? 50) + swing, 0, 100);
+
+  // physical load: long matches, hard courts and tight strings punish the body
+  addLoad(s, sets.length, surface);
 
   return {
     round,
@@ -747,6 +1058,7 @@ function buildBracket(drawSize: number, matches: MatchResult[], playerName: stri
 }
 
 export function playTournament(s: GameState, offer: TournamentOffer): TournamentRun {
+  ensureBody(s);
   const matches: MatchResult[] = [];
   const log = (t: string, tone = "info") => pushLog(s, t, tone);
   const conditions = rollConditions(offer.surface, offer.venue.indoor);
@@ -767,11 +1079,13 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
     // round robin / dual match: guaranteed 3 matches, no ranking points
     let wins = 0;
     for (let i = 0; i < 3; i++) {
+      const rrUtr = clamp(offer.fieldUtr + rnd(-0.7, 0.9), 1, 16.5);
+      const rrOpp = poolOpponent(s, rrUtr);
       const m = simulateMatch(
         s,
         `Round Robin ${i + 1}`,
-        randomName(),
-        clamp(offer.fieldUtr + rnd(-0.7, 0.9), 1, 16.5),
+        rrOpp.name,
+        clamp(rrOpp.utr, 1, 16.5),
         offer.surface,
         conditions,
       );
@@ -793,11 +1107,13 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
   } else {
     if (offer.entry === "qualifying") {
       for (let q = 1; q <= (offer.qualifyingRounds ?? 2); q++) {
+        const qUtr = clamp(offer.fieldUtr - 1.1 + q * 0.25, 1, 16.5);
+        const qOpp = poolOpponent(s, qUtr);
         const qm = simulateMatch(
           s,
           `Qualifying ${q}`,
-          randomName(),
-          clamp(offer.fieldUtr - 1.1 + q * 0.25, 1, 16.5),
+          qOpp.name,
+          clamp(qOpp.utr, 1, 16.5),
           offer.surface,
           conditions,
         );
@@ -839,12 +1155,13 @@ export function playTournament(s: GameState, offer: TournamentOffer): Tournament
       const oppUtr = clamp(offer.fieldUtr - 1.0 + step * 2.6 + rnd(-0.4, 0.4), 1, 16.5);
       const rival = s.rivals[(s.week + i) % s.rivals.length];
       const useRival = rival && (s.week + i) % 3 === 0;
-      const opponent = useRival ? rival.name : randomName();
+      const fromPool = poolOpponent(s, oppUtr);
+      const opponent = useRival ? rival.name : fromPool.name;
       const m = simulateMatch(
         s,
         names[i]!,
         opponent,
-        useRival ? clamp(rival.utr, 1, 16.5) : oppUtr,
+        useRival ? clamp(rival.utr, 1, 16.5) : clamp(fromPool.utr, 1, 16.5),
         offer.surface,
         conditions,
       );
@@ -1127,6 +1444,21 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
   const rest = s.playedThisWeek ? 4 : 13 + s.attrs.fitness / 12;
   s.fatigue = clamp(s.fatigue - rest + alloc.fitness * 0.9 + alloc.tennis * 0.7, 0, 100);
 
+  // physical load from training, then recovery, injury roll and mental state
+  ensureBody(s);
+  if (!isSidelined(s)) {
+    const trainingLoad = (alloc.tennis * 0.28 + alloc.fitness * 0.38) * (1 - s.attrs.fitness / 300);
+    for (const a of BODY_AREAS) s.bodyLoad[a] = clamp(s.bodyLoad[a] + trainingLoad * rnd(0.6, 1.1), 0, 100);
+  }
+  const restWeek = !s.playedThisWeek && alloc.tennis + alloc.fitness <= 4;
+  recover(s, restWeek);
+  if (!isSidelined(s)) rollInjury(s);
+  if (isSidelined(s)) {
+    // ratings drift while you cannot compete
+    s.utr = r2(clamp(s.utr - 0.012, 1, 16.5));
+  }
+  updateMental(s, s.playedThisWeek, alloc);
+
   if (s.age < 10 && Math.random() < 0.75) {
     pushLog(s, CHILD_LOGS[Math.floor(Math.random() * CHILD_LOGS.length)]!, "info");
     s.attrs.tennis = clamp(s.attrs.tennis + 0.2, 0, 100);
@@ -1188,6 +1520,9 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
     s.rivals.forEach((r) => {
       r.utr = r2(clamp(r.utr + rnd(0.2, 0.65), 1, 16.5));
     });
+    // the opponent world moves on: graduations, pro debuts, retirements
+    for (const line of agePool(s.ontarioPool, "junior")) pushLog(s, line, "info");
+    if (s.atpPool.length) for (const line of agePool(s.atpPool, "pro")) pushLog(s, line, "info");
     if (s.phase === "college" && !s.college.redshirtThisSeason) s.college.seasonsUsed++;
     s.college.redshirtThisSeason = false;
     pushLog(s, `— Season ${s.season} begins. You are now ${s.age} years old. —`, "good");
@@ -1377,6 +1712,13 @@ export function createGame(name: string, hand: Hand, playstyle: Playstyle): Game
     losses: 0,
     titles: 0,
     surfaceForm: { "Indoor Hard": 50, Hard: 50, Clay: 50, Grass: 50 },
+    bodyLoad: { Shoulder: 0, Wrist: 0, Back: 0, Knee: 0 },
+    injury: null,
+    injuryHistory: [],
+    sharpness: 100,
+    confidence: 50,
+    motivation: 80,
+    burnoutWarned: false,
     sponsor: null,
     sponsorReputation: 20,
     racquet: RACQUETS[2]!.name,
