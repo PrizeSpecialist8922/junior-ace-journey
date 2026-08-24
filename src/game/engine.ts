@@ -275,10 +275,19 @@ export function simulateMatch(
   const fatiguePenalty = (s.fatigue / 100) * 1.2;
   const mentalBonus = (s.attrs.mental / 100) * 0.5;
   const form = s.surfaceForm[surface] ?? 50;
+  // sharpness (match rust after a layoff), confidence and playing hurt all bite
+  const sharpnessPenalty = ((100 - (s.sharpness ?? 100)) / 100) * 0.7;
+  const confidenceEdge = (((s.confidence ?? 50) - 50) / 100) * 0.55;
+  const motivationEdge = (((s.motivation ?? 70) - 60) / 100) * 0.25;
+  const niggle = s.injury && s.injury.severity === "Niggle" ? 0.55 : 0;
   const eff =
     s.utr -
     fatiguePenalty +
-    mentalBonus +
+    mentalBonus -
+    sharpnessPenalty +
+    confidenceEdge +
+    motivationEdge -
+    niggle +
     styleEdge(s.playstyle, oppUtr, s.utr, surface) +
     conditionsEdge(form, conditions, s.attrs.fitness, s.playstyle);
   const p = 1 / (1 + Math.pow(10, (oppUtr - eff) / 2.2));
