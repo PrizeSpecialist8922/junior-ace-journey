@@ -129,7 +129,36 @@ export interface TournamentOffer {
   travelCost: number;
   entry?: "direct" | "qualifying" | "wildcard";
   qualifyingRounds?: number;
+  /** which ranking list this event feeds */
+  circuit?: "OTA" | "ITF Junior" | "ATP" | "College" | "Intl Junior" | "None";
+  /** notes shown under the entry requirement */
+  notes?: string;
 }
+
+export interface EventResult {
+  id: string;
+  week: number;
+  season: number;
+  name: string;
+  bracket: string;
+  champion: string;
+  runnerUp: string;
+  score: string;
+  semifinalists: string[];
+  selectionEvent: boolean;
+}
+
+export interface Notification {
+  id: string;
+  kind: "selection" | "provincials" | "nationals" | "itf" | "pro" | "college" | "nil" | "general";
+  title: string;
+  body: string;
+  tone: "good" | "bad" | "info" | "gold";
+  week: number;
+  age: number;
+  read: boolean;
+}
+
 
 export interface SponsorDeal {
   id: string;
