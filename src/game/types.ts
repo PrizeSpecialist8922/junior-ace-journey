@@ -25,10 +25,13 @@ export interface Venue {
   name: string;
   city: string;
   region: string;
+  country: string;
   surface: Surface;
   indoor: boolean;
-  travelCostTier: 1 | 2 | 3; // 1 = local GTA, 2 = Ontario/Montreal, 3 = international
+  /** 1 = local GTA, 2 = Ontario/Quebec, 3 = North America, 4 = intercontinental */
+  travelCostTier: 1 | 2 | 3 | 4;
 }
+
 
 export interface PointEntry {
   /** absolute week when earned */
@@ -126,7 +129,36 @@ export interface TournamentOffer {
   travelCost: number;
   entry?: "direct" | "qualifying" | "wildcard";
   qualifyingRounds?: number;
+  /** which ranking list this event feeds */
+  circuit?: "OTA" | "ITF Junior" | "ATP" | "College" | "Intl Junior" | "None";
+  /** notes shown under the entry requirement */
+  notes?: string;
 }
+
+export interface EventResult {
+  id: string;
+  week: number;
+  season: number;
+  name: string;
+  bracket: string;
+  champion: string;
+  runnerUp: string;
+  score: string;
+  semifinalists: string[];
+  selectionEvent: boolean;
+}
+
+export interface Notification {
+  id: string;
+  kind: "selection" | "provincials" | "nationals" | "itf" | "pro" | "college" | "nil" | "general";
+  title: string;
+  body: string;
+  tone: "good" | "bad" | "info" | "gold";
+  week: number;
+  age: number;
+  read: boolean;
+}
+
 
 export interface SponsorDeal {
   id: string;
@@ -172,6 +204,18 @@ export interface CollegeState {
   individualWins: number;
   individualLosses: number;
   conferenceChampion: boolean;
+  /** weekly NIL money — only for elite recruits who keep performing */
+  nilWeekly: number;
+  nilOffered: number;
+  lineupSpot: number;
+}
+
+export interface LineupEntry {
+  spot: number;
+  name: string;
+  utr: number;
+  isPlayer: boolean;
+  year: string;
 }
 
 export interface BracketNode {
@@ -198,11 +242,26 @@ export interface AIPlayer {
   injuryWeeks?: number;
   peakUtr?: number;
   seasons?: number;
+  /** ITF junior circuit points (singles / doubles) */
+  itfPoints?: number;
+  itfDoublesPoints?: number;
+  country?: string;
+  /** mock season record used by the selection race */
+  seasonWins?: number;
+  seasonLosses?: number;
 }
 
 export interface GameState {
   ontarioPool: AIPlayer[];
   atpPool: AIPlayer[];
+  /** world ITF junior circuit field */
+  itfPool: AIPlayer[];
+  /** ITF junior ranking points, singles and doubles */
+  itfSingles: PointEntry[];
+  itfDoubles: PointEntry[];
+  notifications: Notification[];
+  eventResults: EventResult[];
+
   name: string;
   hand: Hand;
   playstyle: Playstyle;

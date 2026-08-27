@@ -20,97 +20,73 @@ export const WEALTH_ALLOWANCE: Record<Wealth, number> = {
   Affluent: 950,
 };
 
+/* --------------------------------- venues --------------------------------- */
+/** travelCostTier: 1 = GTA, 2 = Ontario/Quebec, 3 = North America, 4 = intercontinental */
+
+const V = (
+  id: string,
+  name: string,
+  city: string,
+  region: string,
+  country: string,
+  surface: Surface,
+  indoor: boolean,
+  travelCostTier: 1 | 2 | 3 | 4,
+): Venue => ({ id, name, city, region, country, surface, indoor, travelCostTier });
+
 export const VENUES: Venue[] = [
-  {
-    id: "sobeys-stadium",
-    name: "Sobeys Stadium / Aviva Centre",
-    city: "Toronto",
-    region: "Ontario",
-    surface: "Hard",
-    indoor: false,
-    travelCostTier: 1,
-  },
-  {
-    id: "ontario-racquet-club",
-    name: "Ontario Racquet Club",
-    city: "Mississauga",
-    region: "Ontario",
-    surface: "Indoor Hard",
-    indoor: true,
-    travelCostTier: 1,
-  },
-  {
-    id: "toronto-cricket",
-    name: "Toronto Cricket, Skating & Curling Club",
-    city: "Toronto",
-    region: "Ontario",
-    surface: "Indoor Hard",
-    indoor: true,
-    travelCostTier: 1,
-  },
-  {
-    id: "cedar-springs",
-    name: "Cedar Springs Health, Racquet & Sports Club",
-    city: "Burlington",
-    region: "Ontario",
-    surface: "Indoor Hard",
-    indoor: true,
-    travelCostTier: 1,
-  },
-  {
-    id: "ra-centre",
-    name: "RA Centre",
-    city: "Ottawa",
-    region: "Ontario",
-    surface: "Indoor Hard",
-    indoor: true,
-    travelCostTier: 2,
-  },
-  {
-    id: "national-tennis-centre",
-    name: "National Tennis Centre / IGA Stadium",
-    city: "Montreal",
-    region: "Quebec",
-    surface: "Hard",
-    indoor: false,
-    travelCostTier: 2,
-  },
-  {
-    id: "london-tennis-club",
-    name: "London Tennis Club",
-    city: "London",
-    region: "Ontario",
-    surface: "Clay",
-    indoor: false,
-    travelCostTier: 2,
-  },
-  {
-    id: "niagara-tennis",
-    name: "Niagara Tennis Academy",
-    city: "Niagara",
-    region: "Ontario",
-    surface: "Hard",
-    indoor: false,
-    travelCostTier: 1,
-  },
-  {
-    id: "barrie-tennis",
-    name: "Barrie Community Tennis Club",
-    city: "Barrie",
-    region: "Ontario",
-    surface: "Hard",
-    indoor: false,
-    travelCostTier: 1,
-  },
-  {
-    id: "windsor-tennis",
-    name: "Windsor Tennis Club",
-    city: "Windsor",
-    region: "Ontario",
-    surface: "Hard",
-    indoor: false,
-    travelCostTier: 2,
-  },
+  // ---- Ontario / Canada
+  V("sobeys-stadium", "Sobeys Stadium / Aviva Centre", "Toronto", "Ontario", "Canada", "Hard", false, 1),
+  V("ontario-racquet-club", "Ontario Racquet Club", "Mississauga", "Ontario", "Canada", "Indoor Hard", true, 1),
+  V("toronto-cricket", "Toronto Cricket, Skating & Curling Club", "Toronto", "Ontario", "Canada", "Indoor Hard", true, 1),
+  V("cedar-springs", "Cedar Springs Racquet Club", "Burlington", "Ontario", "Canada", "Indoor Hard", true, 1),
+  V("mayfair-lakeshore", "Mayfair Lakeshore", "Toronto", "Ontario", "Canada", "Indoor Hard", true, 1),
+  V("ra-centre", "RA Centre", "Ottawa", "Ontario", "Canada", "Indoor Hard", true, 2),
+  V("national-tennis-centre", "National Tennis Centre / IGA Stadium", "Montreal", "Quebec", "Canada", "Hard", false, 2),
+  V("london-tennis-club", "London Tennis Club", "London", "Ontario", "Canada", "Clay", false, 2),
+  V("niagara-tennis", "Niagara Tennis Academy", "Niagara", "Ontario", "Canada", "Hard", false, 1),
+  V("barrie-tennis", "Barrie Community Tennis Club", "Barrie", "Ontario", "Canada", "Hard", false, 1),
+  V("windsor-tennis", "Windsor Tennis Club", "Windsor", "Ontario", "Canada", "Hard", false, 2),
+  V("kingston-tennis", "Kingston Tennis Club", "Kingston", "Ontario", "Canada", "Clay", false, 2),
+  V("thornhill-club", "Thornhill Country Club", "Thornhill", "Ontario", "Canada", "Grass", false, 1),
+  V("vancouver-hollyburn", "Hollyburn Country Club", "Vancouver", "British Columbia", "Canada", "Hard", false, 3),
+
+  // ---- United States
+  V("usta-orlando", "USTA National Campus", "Orlando", "Florida", "USA", "Hard", false, 3),
+  V("ijtc-college-park", "Junior Tennis Champions Center", "College Park", "Maryland", "USA", "Hard", false, 3),
+  V("kalamazoo", "Stowe Stadium", "Kalamazoo", "Michigan", "USA", "Hard", false, 3),
+  V("indian-wells", "Indian Wells Tennis Garden", "Indian Wells", "California", "USA", "Hard", false, 3),
+  V("miami-hard-rock", "Hard Rock Stadium", "Miami", "Florida", "USA", "Hard", false, 3),
+  V("cincinnati-lindner", "Lindner Family Tennis Center", "Cincinnati", "Ohio", "USA", "Hard", false, 3),
+  V("newport-casino", "International Tennis Hall of Fame", "Newport", "Rhode Island", "USA", "Grass", false, 3),
+  V("houston-river-oaks", "River Oaks Country Club", "Houston", "Texas", "USA", "Clay", false, 3),
+  V("usopen-flushing", "USTA Billie Jean King National Tennis Center", "New York", "New York", "USA", "Hard", false, 3),
+
+  // ---- Europe
+  V("rolandgarros", "Stade Roland-Garros", "Paris", "Île-de-France", "France", "Clay", false, 4),
+  V("wimbledon", "All England Lawn Tennis Club", "London", "England", "Great Britain", "Grass", false, 4),
+  V("foro-italico", "Foro Italico", "Rome", "Lazio", "Italy", "Clay", false, 4),
+  V("caja-magica", "Caja Mágica", "Madrid", "Madrid", "Spain", "Clay", false, 4),
+  V("monte-carlo", "Monte-Carlo Country Club", "Monte Carlo", "Monaco", "Monaco", "Clay", false, 4),
+  V("halle-owl", "OWL Arena", "Halle", "NRW", "Germany", "Grass", false, 4),
+  V("rotterdam-ahoy", "Rotterdam Ahoy", "Rotterdam", "South Holland", "Netherlands", "Indoor Hard", true, 4),
+  V("bercy", "Accor Arena", "Paris", "Île-de-France", "France", "Indoor Hard", true, 4),
+  V("basel-halle", "St. Jakobshalle", "Basel", "Basel", "Switzerland", "Indoor Hard", true, 4),
+  V("prague-sparta", "Sparta Praha Tennis", "Prague", "Prague", "Czechia", "Clay", false, 4),
+  V("barcelona-rctb", "Real Club de Tenis Barcelona", "Barcelona", "Catalonia", "Spain", "Clay", false, 4),
+  V("vienna-wiener", "Wiener Stadthalle", "Vienna", "Vienna", "Austria", "Indoor Hard", true, 4),
+
+  // ---- Rest of world
+  V("melbourne-park", "Melbourne Park", "Melbourne", "Victoria", "Australia", "Hard", false, 4),
+  V("ariake", "Ariake Coliseum", "Tokyo", "Kanto", "Japan", "Hard", false, 4),
+  V("shanghai-qizhong", "Qizhong Forest Arena", "Shanghai", "Shanghai", "China", "Hard", false, 4),
+  V("dubai-aviation", "Dubai Duty Free Stadium", "Dubai", "Dubai", "UAE", "Hard", false, 4),
+  V("buenos-aires-lawn", "Buenos Aires Lawn Tennis Club", "Buenos Aires", "Buenos Aires", "Argentina", "Clay", false, 4),
+  V("santiago-anfa", "Club Deportivo Anfa", "Santiago", "Santiago", "Chile", "Clay", false, 4),
+  V("delhi-dlta", "DLTA Complex", "New Delhi", "Delhi", "India", "Hard", false, 4),
+  V("cairo-heliopolis", "Heliopolis Sporting Club", "Cairo", "Cairo", "Egypt", "Clay", false, 4),
+  V("tunis-tennis", "Tennis Club de Tunis", "Tunis", "Tunis", "Tunisia", "Clay", false, 4),
+  V("monastir-flamingo", "Flamingo Tennis Club", "Monastir", "Monastir", "Tunisia", "Hard", false, 4),
 ];
 
 export const DEFAULT_SURFACE: Surface = "Indoor Hard";
@@ -127,10 +103,15 @@ export function surfaceForWeek(week: number): Surface {
 }
 
 export function venueForSurface(surface: Surface): Venue {
-  const matches = VENUES.filter((v) => v.surface === surface);
+  const matches = VENUES.filter((v) => v.surface === surface && v.travelCostTier <= 2);
   if (matches.length) return matches[Math.floor(Math.random() * matches.length)]!;
   return VENUES[Math.floor(Math.random() * VENUES.length)]!;
 }
+
+/** Travel cost by tier, before staff/entourage multipliers. */
+export const TRAVEL_COST: Record<1 | 2 | 3 | 4, number> = { 1: 0, 2: 220, 3: 1650, 4: 3900 };
+
+/* ------------------------------ OTA structure ------------------------------ */
 
 export const OTA_LEVELS = [
   {
@@ -148,14 +129,14 @@ export const OTA_LEVELS = [
   {
     level: 3,
     name: "Provincial Circuit",
-    gate: "Top 100 Ontario ranking or UTR above 3.50",
+    gate: "Top 150 Ontario ranking or UTR above 3.50",
     note: "Competitive singles draws for experienced juniors.",
   },
   {
     level: 3.5,
     name: "Provincial Circuit Plus (+)",
     gate: "Top 50 Ontario ranking or UTR above 6.00",
-    note: "High-performance singles. Doubles officially unlocked.",
+    note: "Only 10 designated weeks per season. Doubles officially unlocked.",
   },
   {
     level: 4,
@@ -167,27 +148,388 @@ export const OTA_LEVELS = [
 
 /** Selection Series calendar weeks: 2 indoor winter, 2 outdoor summer. */
 export const SELECTION_WEEKS = [6, 12, 28, 34];
+/** Provincial Circuit + runs only 10 weeks of the 52-week season. */
+export const PROVINCIAL_PLUS_WEEKS = [4, 9, 16, 20, 24, 26, 31, 38, 45, 50];
 export const PROVINCIALS_WEEK = 42;
 export const NATIONALS_WEEK = 48;
 
-export const ITF_TIERS = [
-  { name: "ITF J30", utr: 4.5, points: 30, drawSize: 32 },
-  { name: "ITF J60", utr: 6.0, points: 60, drawSize: 32 },
-  { name: "ITF J100", utr: 7.5, points: 100, drawSize: 48 },
-  { name: "ITF J200", utr: 9.0, points: 200, drawSize: 48 },
-  { name: "ITF J500", utr: 10.5, points: 500, drawSize: 64 },
+/* ------------------------- international junior play ----------------------- */
+
+export interface IntlJuniorEvent {
+  id: string;
+  name: string;
+  circuit: "Tennis Europe" | "USTA National" | "COTECC" | "Asian Junior";
+  minAge: number;
+  maxAge: number;
+  venueId: string;
+  utr: number;
+  points: number;
+  drawSize: number;
+  weeks: number[];
+}
+
+export const INTL_JUNIOR_EVENTS: IntlJuniorEvent[] = [
+  {
+    id: "te-u12",
+    name: "Tennis Europe U12 — Prague Junior Open",
+    circuit: "Tennis Europe",
+    minAge: 10,
+    maxAge: 12,
+    venueId: "prague-sparta",
+    utr: 5.2,
+    points: 120,
+    drawSize: 32,
+    weeks: [11, 19, 33],
+  },
+  {
+    id: "te-u14",
+    name: "Tennis Europe U14 — Barcelona Winter Cup",
+    circuit: "Tennis Europe",
+    minAge: 12,
+    maxAge: 14,
+    venueId: "barcelona-rctb",
+    utr: 7.1,
+    points: 180,
+    drawSize: 32,
+    weeks: [8, 17, 40],
+  },
+  {
+    id: "te-u16",
+    name: "Tennis Europe U16 — Halle Grass Trophy",
+    circuit: "Tennis Europe",
+    minAge: 14,
+    maxAge: 16,
+    venueId: "halle-owl",
+    utr: 8.6,
+    points: 240,
+    drawSize: 32,
+    weeks: [25, 29],
+  },
+  {
+    id: "usta-l3",
+    name: "USTA National Level 3 — Orlando",
+    circuit: "USTA National",
+    minAge: 10,
+    maxAge: 18,
+    venueId: "usta-orlando",
+    utr: 6.4,
+    points: 150,
+    drawSize: 64,
+    weeks: [5, 14, 27, 36, 46],
+  },
+  {
+    id: "usta-l1",
+    name: "USTA National Championships — Kalamazoo",
+    circuit: "USTA National",
+    minAge: 14,
+    maxAge: 18,
+    venueId: "kalamazoo",
+    utr: 9.8,
+    points: 320,
+    drawSize: 64,
+    weeks: [32],
+  },
+  {
+    id: "cotecc",
+    name: "COTECC Junior Championships — Santiago",
+    circuit: "COTECC",
+    minAge: 11,
+    maxAge: 16,
+    venueId: "santiago-anfa",
+    utr: 6.9,
+    points: 160,
+    drawSize: 32,
+    weeks: [7, 43],
+  },
+  {
+    id: "asia-junior",
+    name: "Asian Junior Championships — Tokyo",
+    circuit: "Asian Junior",
+    minAge: 12,
+    maxAge: 18,
+    venueId: "ariake",
+    utr: 8.2,
+    points: 200,
+    drawSize: 32,
+    weeks: [13, 21, 47],
+  },
 ];
 
-export const PRO_TIERS = [
-  { name: "ITF Futures (M15)", rank: 100000, utr: 10.5, points: 12, prize: 2200, drawSize: 32 },
-  { name: "ITF Futures (M25)", rank: 900, utr: 11.5, points: 25, prize: 4300, drawSize: 32 },
-  { name: "ATP Challenger 75", rank: 450, utr: 12.5, points: 75, prize: 11000, drawSize: 32 },
-  { name: "ATP Challenger 125", rank: 250, utr: 13.2, points: 125, prize: 22000, drawSize: 48 },
-  { name: "ATP 250", rank: 150, utr: 13.8, points: 250, prize: 95000, drawSize: 32 },
-  { name: "ATP 500", rank: 80, utr: 14.4, points: 500, prize: 380000, drawSize: 32 },
-  { name: "ATP Masters 1000", rank: 45, utr: 15.0, points: 1000, prize: 950000, drawSize: 64 },
-  { name: "Grand Slam", rank: 104, utr: 15.4, points: 2000, prize: 2600000, drawSize: 128 },
+/* --------------------------- ITF junior circuit ---------------------------- */
+
+export interface ItfTier {
+  name: string;
+  /** field strength */
+  utr: number;
+  /** minimum player UTR to be accepted */
+  minUtr: number;
+  /** ITF junior ranking needed for direct acceptance (999999 = unranked ok) */
+  directRank: number;
+  /** ITF junior ranking needed to enter qualifying */
+  qualRank: number;
+  points: number;
+  drawSize: number;
+  qualifyingRounds: number;
+  venueIds: string[];
+}
+
+export const ITF_TIERS: ItfTier[] = [
+  {
+    name: "ITF J30",
+    utr: 8.4,
+    minUtr: 7.2,
+    directRank: 999999,
+    qualRank: 999999,
+    points: 30,
+    drawSize: 32,
+    qualifyingRounds: 2,
+    venueIds: ["monastir-flamingo", "cairo-heliopolis", "delhi-dlta", "tunis-tennis"],
+  },
+  {
+    name: "ITF J60",
+    utr: 9.6,
+    minUtr: 8.6,
+    directRank: 1200,
+    qualRank: 2200,
+    points: 60,
+    drawSize: 32,
+    qualifyingRounds: 2,
+    venueIds: ["prague-sparta", "santiago-anfa", "ijtc-college-park", "delhi-dlta"],
+  },
+  {
+    name: "ITF J100",
+    utr: 10.7,
+    minUtr: 9.7,
+    directRank: 550,
+    qualRank: 1100,
+    points: 100,
+    drawSize: 48,
+    qualifyingRounds: 3,
+    venueIds: ["barcelona-rctb", "halle-owl", "usta-orlando", "ariake"],
+  },
+  {
+    name: "ITF J200",
+    utr: 11.6,
+    minUtr: 10.6,
+    directRank: 260,
+    qualRank: 520,
+    points: 200,
+    drawSize: 48,
+    qualifyingRounds: 3,
+    venueIds: ["monte-carlo", "foro-italico", "melbourne-park", "buenos-aires-lawn"],
+  },
+  {
+    name: "ITF J300",
+    utr: 12.2,
+    minUtr: 11.2,
+    directRank: 150,
+    qualRank: 300,
+    points: 300,
+    drawSize: 64,
+    qualifyingRounds: 3,
+    venueIds: ["caja-magica", "shanghai-qizhong", "usta-orlando", "cairo-heliopolis"],
+  },
+  {
+    name: "ITF J500",
+    utr: 12.8,
+    minUtr: 11.8,
+    directRank: 80,
+    qualRank: 160,
+    points: 500,
+    drawSize: 64,
+    qualifyingRounds: 3,
+    venueIds: ["ijtc-college-park", "prague-sparta", "melbourne-park", "rolandgarros"],
+  },
+  {
+    name: "Junior Grand Slam",
+    utr: 13.4,
+    minUtr: 12.4,
+    directRank: 30,
+    qualRank: 70,
+    points: 1000,
+    drawSize: 64,
+    qualifyingRounds: 3,
+    venueIds: ["melbourne-park", "rolandgarros", "wimbledon", "usopen-flushing"],
+  },
 ];
+
+/* ------------------------------- pro circuit ------------------------------- */
+
+export interface ProTier {
+  id: string;
+  name: string;
+  short: string;
+  /** ATP ranking for direct main-draw acceptance */
+  directRank: number;
+  /** ATP ranking needed to even enter qualifying (no rank = no entry) */
+  qualRank: number;
+  utr: number;
+  points: number;
+  prize: number;
+  drawSize: number;
+  qualifyingRounds: number;
+  venueIds: string[];
+  /** fixed calendar weeks, when the event is a real tour stop */
+  weeks?: number[];
+}
+
+export const PRO_TIERS: ProTier[] = [
+  {
+    id: "m15",
+    name: "ITF World Tennis Tour M15",
+    short: "M15",
+    directRank: 1300,
+    qualRank: 2000,
+    utr: 12.6,
+    points: 8,
+    prize: 2160,
+    drawSize: 32,
+    qualifyingRounds: 2,
+    venueIds: ["monastir-flamingo", "cairo-heliopolis", "tunis-tennis", "delhi-dlta", "usta-orlando"],
+  },
+  {
+    id: "m25",
+    name: "ITF World Tennis Tour M25",
+    short: "M25",
+    directRank: 750,
+    qualRank: 1400,
+    utr: 13.2,
+    points: 20,
+    prize: 4320,
+    drawSize: 32,
+    qualifyingRounds: 2,
+    venueIds: ["houston-river-oaks", "prague-sparta", "santiago-anfa", "ariake", "ijtc-college-park"],
+  },
+  {
+    id: "ch50",
+    name: "ATP Challenger 50",
+    short: "CH50",
+    directRank: 400,
+    qualRank: 750,
+    utr: 13.7,
+    points: 50,
+    prize: 7200,
+    drawSize: 32,
+    qualifyingRounds: 2,
+    venueIds: ["vancouver-hollyburn", "buenos-aires-lawn", "prague-sparta", "delhi-dlta"],
+  },
+  {
+    id: "ch100",
+    name: "ATP Challenger 100",
+    short: "CH100",
+    directRank: 230,
+    qualRank: 420,
+    utr: 14.1,
+    points: 100,
+    prize: 21600,
+    drawSize: 48,
+    qualifyingRounds: 2,
+    venueIds: ["ra-centre", "barcelona-rctb", "cincinnati-lindner", "shanghai-qizhong"],
+  },
+  {
+    id: "ch175",
+    name: "ATP Challenger 175",
+    short: "CH175",
+    directRank: 130,
+    qualRank: 240,
+    utr: 14.5,
+    points: 175,
+    prize: 38000,
+    drawSize: 48,
+    qualifyingRounds: 2,
+    venueIds: ["dubai-aviation", "basel-halle", "usta-orlando", "melbourne-park"],
+  },
+  {
+    id: "atp250",
+    name: "ATP 250",
+    short: "ATP 250",
+    directRank: 100,
+    qualRank: 200,
+    utr: 14.9,
+    points: 250,
+    prize: 112000,
+    drawSize: 32,
+    qualifyingRounds: 2,
+    venueIds: ["newport-casino", "houston-river-oaks", "rotterdam-ahoy", "vienna-wiener", "ariake"],
+  },
+  {
+    id: "atp500",
+    name: "ATP 500",
+    short: "ATP 500",
+    directRank: 60,
+    qualRank: 130,
+    utr: 15.3,
+    points: 500,
+    prize: 420000,
+    drawSize: 32,
+    qualifyingRounds: 2,
+    venueIds: ["dubai-aviation", "barcelona-rctb", "halle-owl", "basel-halle", "tokyo-ariake"],
+  },
+  {
+    id: "masters",
+    name: "ATP Masters 1000",
+    short: "M1000",
+    directRank: 40,
+    qualRank: 90,
+    utr: 15.7,
+    points: 1000,
+    prize: 1100000,
+    drawSize: 64,
+    qualifyingRounds: 2,
+    venueIds: [
+      "indian-wells",
+      "miami-hard-rock",
+      "foro-italico",
+      "caja-magica",
+      "cincinnati-lindner",
+      "shanghai-qizhong",
+      "bercy",
+      "sobeys-stadium",
+    ],
+  },
+];
+
+/** The four majors, at their real cities, surfaces and calendar weeks. */
+export const GRAND_SLAMS = [
+  {
+    id: "ao",
+    name: "Australian Open",
+    venueId: "melbourne-park",
+    week: 3,
+    surface: "Hard" as Surface,
+  },
+  {
+    id: "rg",
+    name: "Roland-Garros",
+    venueId: "rolandgarros",
+    week: 22,
+    surface: "Clay" as Surface,
+  },
+  {
+    id: "wimb",
+    name: "The Championships, Wimbledon",
+    venueId: "wimbledon",
+    week: 27,
+    surface: "Grass" as Surface,
+  },
+  {
+    id: "uso",
+    name: "US Open",
+    venueId: "usopen-flushing",
+    week: 35,
+    surface: "Hard" as Surface,
+  },
+];
+
+export const SLAM_SPEC = {
+  directRank: 104,
+  qualRank: 250,
+  utr: 16.0,
+  points: 2000,
+  prize: 3600000,
+  drawSize: 128,
+  qualifyingRounds: 3,
+};
 
 export const SPONSORS = [
   {
@@ -267,8 +609,10 @@ export const NCAA_SCHOOLS = [
       name: name!,
       conference: conference!,
       division: "D1",
-      minUtr: 11.5 + (i < 8 ? 1 : 0),
+      minUtr: 12.6 + (i < 8 ? 0.9 : 0),
       strength: 82 + (20 - i),
+      /** weekly NIL money a program can offer a top recruit */
+      nilWeekly: i < 5 ? 2600 : i < 12 ? 1500 : 800,
     };
   }),
   ...[
@@ -283,8 +627,9 @@ export const NCAA_SCHOOLS = [
     name,
     conference: "D2 Independent",
     division: "D2",
-    minUtr: 8.5,
+    minUtr: 10.6,
     strength: 82 - i,
+    nilWeekly: 260,
   })),
   ...[
     "Emory",
@@ -302,8 +647,9 @@ export const NCAA_SCHOOLS = [
     name,
     conference: i < 9 ? "UAA" : "NESCAC",
     division: "D3",
-    minUtr: 5,
+    minUtr: 7.5,
     strength: 78 - i,
+    nilWeekly: 0,
   })),
 ];
 
@@ -353,48 +699,17 @@ export const STAFF_CATALOG: {
 ];
 
 const FIRST = [
-  "Liam",
-  "Noah",
-  "Ethan",
-  "Lucas",
-  "Owen",
-  "Mateo",
-  "Felix",
-  "Jonas",
-  "Ryo",
-  "Arjun",
-  "Nathan",
-  "Cole",
-  "Émile",
-  "Declan",
-  "Kai",
-  "Theo",
-  "Marco",
-  "Dylan",
-  "Alexei",
-  "Hugo",
+  "Liam", "Noah", "Ethan", "Lucas", "Owen", "Mateo", "Felix", "Jonas", "Ryo", "Arjun",
+  "Nathan", "Cole", "Émile", "Declan", "Kai", "Theo", "Marco", "Dylan", "Alexei", "Hugo",
+  "Diego", "Rafa", "Stefan", "Milos", "Andrei", "Tomas", "Yuki", "Hyeon", "Karim", "Youssef",
+  "Lorenzo", "Matteo", "Sebastian", "Jannik", "Casper", "Holger", "Emil", "Pedro", "Joao", "Nuno",
 ];
 const LAST = [
-  "Tremblay",
-  "Nguyen",
-  "Kowalski",
-  "Bianchi",
-  "Okafor",
-  "Suzuki",
-  "Novak",
-  "Reyes",
-  "Lindqvist",
-  "Bhatia",
-  "Moreau",
-  "Zhang",
-  "O'Brien",
-  "Petrov",
-  "Hausmann",
-  "Silva",
-  "Dubois",
-  "Kaur",
-  "Fernandez",
-  "Vasilev",
+  "Tremblay", "Nguyen", "Kowalski", "Bianchi", "Okafor", "Suzuki", "Novak", "Reyes", "Lindqvist",
+  "Bhatia", "Moreau", "Zhang", "O'Brien", "Petrov", "Hausmann", "Silva", "Dubois", "Kaur",
+  "Fernandez", "Vasilev", "Alcaraz-Ruiz", "Berrettini", "Van der Merwe", "Kovacevic", "Haddad",
+  "El Amrani", "Sakamoto", "Park", "Rossi", "Larsen", "Schmid", "Bergman", "Costa", "Duarte",
+  "Ivanov", "Marchetti", "Weiss", "Nakamura", "Rahman", "Cruz",
 ];
 
 export function randomName(rng: () => number = Math.random) {

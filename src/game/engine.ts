@@ -1374,13 +1374,42 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
   const now = absWeek(s);
   s.rogers = pruneExpired(s.rogers, now);
   s.atp = pruneExpired(s.atp, now);
+  s.itfSingles = pruneExpired(s.itfSingles ?? [], now);
+  s.itfDoubles = pruneExpired(s.itfDoubles ?? [], now);
+  s.notifications ??= [];
+  s.eventResults ??= [];
 
   // income & expenses
-  if (!s.sponsor && s.age <= 18) s.bank += s.allowance;
+  if (!s.sponsor && s.age <= 18 && s.phase !== "college") s.bank += s.allowance;
   if (s.sponsor) s.bank += s.sponsor.weekly;
-  const cost = weeklyStaffCost(s);
+  // in college the athletic department covers coaching, travel and training
+  const inCollege = s.phase === "college";
+  if (inCollege) {
+    const nil = nilStatus(s);
+    if (nil.eligible && s.college.nilWeekly !== nil.weekly) {
+      s.college.nilWeekly = nil.weekly;
+      notify(
+        s,
+        "nil",
+        "NIL deal activated",
+        `${s.college.school} boosters signed you to $${nil.weekly.toLocaleString()}/week in NIL money. Keep the lineup spot, the results and the GPA or it is pulled.`,
+        "gold",
+      );
+    } else if (!nil.eligible && s.college.nilWeekly > 0) {
+      s.college.nilWeekly = 0;
+      notify(
+        s,
+        "nil",
+        "NIL deal suspended",
+        `You no longer meet every NIL condition (${nil.met}/6 met). The money stops until you do.`,
+        "bad",
+      );
+    }
+    s.bank += s.college.nilWeekly;
+  }
+  const cost = inCollege ? 0 : weeklyStaffCost(s);
   s.bank -= cost;
-  if (s.bank < 0) {
+  if (s.bank < 0 && !inCollege) {
     const dropped = s.staff.pop();
     if (dropped) {
       s.bank += dropped.weekly;
@@ -1392,6 +1421,7 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
     }
     s.bank = Math.max(0, s.bank);
   }
+
 
   // training
   const cm = staffMultiplier(s, "Private Coach");
@@ -1453,11 +1483,17 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
   const restWeek = !s.playedThisWeek && alloc.tennis + alloc.fitness <= 4;
   recover(s, restWeek);
   if (!isSidelined(s)) rollInjury(s);
-  if (isSidelined(s)) {
-    // ratings drift while you cannot compete
-    s.utr = r2(clamp(s.utr - 0.012, 1, 16.5));
-  }
+  // NOTE: UTR is a permanent rating. It never resets or drains week to week —
+  // it only moves through actual match results.
   updateMental(s, s.playedThisWeek, alloc);
+
+  // your doubles partner keeps developing alongside you
+  if (s.partner) {
+    const target = s.utr + 0.35;
+    const gap = target - s.partner.utr;
+    s.partner.utr = r2(clamp(s.partner.utr + clamp(gap * 0.05, -0.01, 0.05), 1, 16.6));
+    if (s.playedThisWeek) s.partner.chemistry = clamp(s.partner.chemistry + 0.6, 0, 100);
+  }
 
   if (s.age < 10 && Math.random() < 0.75) {
     pushLog(s, CHILD_LOGS[Math.floor(Math.random() * CHILD_LOGS.length)]!, "info");
@@ -1466,7 +1502,11 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
   }
 
   evolvePool(s.ontarioPool);
+  evolvePool(s.itfPool ?? []);
   if (s.phase === "pro") evolvePool(s.atpPool);
+
+  // the rest of the province and the world actually play their events this week
+  runWorldWeek(s);
 
   if (s.week === 35) {
     const eligible =
@@ -1485,9 +1525,12 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
   s.playedThisWeek = false;
   s.week++;
 
+  scheduleNotifications(s);
+
   if (s.week === NATIONALS_WEEK - 1 && s.phase === "junior" && s.age >= 10) {
     const rank = selectionRank(s);
     s.qualifiedNationals = rank <= 16;
+    const pts = s.selection[ageBracket(s.age)] ?? 0;
     pushLog(
       s,
       s.qualifiedNationals
@@ -1495,7 +1538,15 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
         : `Selection race closed: #${rank === 999 ? "unranked" : rank} in Ontario ${ageBracket(s.age)} — missed the Top 16 cut for Junior Nationals.`,
       s.qualifiedNationals ? "good" : "bad",
     );
+    notify(
+      s,
+      "nationals",
+      s.qualifiedNationals ? "Accepted — Junior Nationals main draw" : "Not selected for Junior Nationals",
+      `Final selection standing: #${rank === 999 ? "unranked" : rank} in ${ageBracket(s.age)} with ${Math.round(pts)} selection points. Cut line is the Top 16.`,
+      s.qualifiedNationals ? "gold" : "bad",
+    );
   }
+
 
   if (s.week > 52) {
     const snapshot = {
@@ -1561,9 +1612,9 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
 
 export function collegeOptions(utr: number) {
   return [
-    { div: "D3", ok: utr >= 5 && utr <= 8.5, range: "UTR 5.00 – 8.50" },
-    { div: "D2", ok: utr >= 8.51 && utr <= 11.5, range: "UTR 8.51 – 11.50" },
-    { div: "D1", ok: utr >= 11.51, range: "UTR 11.51+" },
+    { div: "D3", ok: utr >= 7.5 && utr <= 10.5, range: "UTR 7.50 – 10.50" },
+    { div: "D2", ok: utr >= 10.51 && utr <= 12.5, range: "UTR 10.51 – 12.50" },
+    { div: "D1", ok: utr >= 12.51, range: "UTR 12.51+" },
   ];
 }
 
@@ -1573,6 +1624,61 @@ export function recruitingSchools(utr: number) {
     .slice(0, 12);
 }
 
+const CLASS_YEARS = ["Freshman", "Sophomore", "Junior", "Senior", "Graduate"];
+
+/**
+ * The team lineup is strictly UTR-ordered: #1 singles belongs to the best UTR
+ * on the roster, and you have to out-rate teammates to move up.
+ */
+export function collegeLineup(s: GameState): LineupEntry[] {
+  const school = NCAA_SCHOOLS.find((x) => x.name === s.college.school);
+  const base = school ? school.minUtr + 0.9 : 10;
+  const seed = (s.college.school ?? "roster").length + s.season;
+  const roster: LineupEntry[] = Array.from({ length: 8 }, (_, i) => {
+    const jitter = ((seed * (i + 3) * 37) % 100) / 100;
+    return {
+      spot: 0,
+      name: randomName(),
+      utr: r2(clamp(base + 1.5 - i * 0.42 + (jitter - 0.5) * 0.5, 4, 16.5)),
+      isPlayer: false,
+      year: CLASS_YEARS[(seed + i) % CLASS_YEARS.length]!,
+    };
+  });
+  roster.push({
+    spot: 0,
+    name: s.name,
+    utr: s.utr,
+    isPlayer: true,
+    year: CLASS_YEARS[Math.min(4, s.college.seasonsUsed)]!,
+  });
+  roster.sort((a, b) => b.utr - a.utr);
+  roster.forEach((r, i) => (r.spot = i + 1));
+  const mine = roster.find((r) => r.isPlayer);
+  s.college.lineupSpot = mine ? mine.spot : 0;
+  return roster;
+}
+
+/** NIL money is deliberately hard: elite lineup spot + winning + ranking + reputation. */
+export function nilStatus(s: GameState) {
+  const school = NCAA_SCHOOLS.find((x) => x.name === s.college.school);
+  const spot = s.college.lineupSpot || collegeLineup(s).length;
+  const winPct =
+    s.college.individualWins + s.college.individualLosses > 0
+      ? s.college.individualWins / (s.college.individualWins + s.college.individualLosses)
+      : 0;
+  const reqs = [
+    { label: "NCAA D1 program", ok: s.collegeDivision === "D1" },
+    { label: "Singles lineup spot #1 or #2", ok: spot <= 2 },
+    { label: "UTR 13.50+", ok: s.utr >= 13.5 },
+    { label: "70%+ individual win rate (min. 12 matches)", ok: winPct >= 0.7 && s.college.individualWins + s.college.individualLosses >= 12 },
+    { label: "Media reputation 60+", ok: s.sponsorReputation >= 60 },
+    { label: "GPA 2.50+ and in good standing", ok: s.gpa >= 2.5 && !s.collegeSuspended },
+  ];
+  const met = reqs.filter((r) => r.ok).length;
+  const eligible = reqs.every((r) => r.ok);
+  return { reqs, met, eligible, weekly: eligible ? (school?.nilWeekly ?? 0) : 0 };
+}
+
 export function chooseCollege(s: GameState, div: string, school?: string) {
   s.phase = "college";
   s.collegeDivision = div;
@@ -1580,16 +1686,64 @@ export function chooseCollege(s: GameState, div: string, school?: string) {
     NCAA_SCHOOLS.find((x) => x.name === school) ?? NCAA_SCHOOLS.find((x) => x.division === div)!;
   s.college.school = picked.name;
   s.college.conference = picked.conference;
+  s.college.nilOffered = picked.nilWeekly;
   s.gpa = 3.0;
   s.crossroadsPending = false;
-  pushLog(s, `Signed a NCAA ${div} tennis scholarship. GPA must stay above 2.00.`, "good");
+  collegeLineup(s);
+  pushLog(
+    s,
+    `Signed a fully funded NCAA ${div} scholarship with ${picked.name} — coaching, travel and training are covered by the program. GPA must stay above 2.00.`,
+    "good",
+  );
+  notify(
+    s,
+    "college",
+    `${picked.name} (${picked.conference})`,
+    `You are #${s.college.lineupSpot} in the singles lineup. Reach #1-#2 with UTR 13.50+ to open NIL money.`,
+    "good",
+  );
 }
 
 export function goPro(s: GameState) {
   s.phase = "pro";
   s.crossroadsPending = false;
-  s.atpPool = buildAtpPool();
-  pushLog(s, "You turn professional and enter the ITF Futures circuit.", "good");
+  if (!s.atpPool.length) s.atpPool = buildAtpPool();
+  pushLog(
+    s,
+    "You turn professional. You now need an ATP ranking to enter any pro event — even qualifying.",
+    "good",
+  );
+  notify(
+    s,
+    "pro",
+    "Professional status confirmed",
+    "Play ITF World Tennis Tour M15 events to earn your first ATP points. No ranking means no entry list.",
+    "info",
+  );
+}
+
+/** Leave school early — eligibility is burned, but the tour starts now. */
+export function dropOutToPro(s: GameState) {
+  if (s.phase !== "college") return;
+  const school = s.college.school ?? "your program";
+  s.phase = "pro";
+  s.college.nilWeekly = 0;
+  s.college.redshirtThisSeason = false;
+  s.college.seasonsUsed = 4; // eligibility forfeited
+  if (!s.atpPool.length) s.atpPool = buildAtpPool();
+  pushLog(s, `You dropped out of ${school} to turn professional. NCAA eligibility is gone.`, "bad");
+  notify(
+    s,
+    "pro",
+    "You turned pro mid-degree",
+    `${school} released you from the roster. Prize money is now your income and travel is on you.`,
+    "gold",
+  );
+}
+
+/** A stalled pro can go back to school if eligibility remains. */
+export function collegeFallbackAvailable(s: GameState) {
+  return s.phase === "pro" && s.age <= 23 && s.college.seasonsUsed < 4 && s.utr >= 7.5;
 }
 
 /* --------------------------------- staff ---------------------------------- */
@@ -1599,6 +1753,7 @@ export function staffOffers() {
     c.tiers.map((t) => ({ role: c.role, ...t, id: `${c.role}-${t.quality}` })),
   );
 }
+
 
 export function hireStaff(
   s: GameState,
@@ -1677,9 +1832,15 @@ export function createGame(name: string, hand: Hand, playstyle: Playstyle): Game
   const s: GameState = {
     ontarioPool: buildOntarioPool(),
     atpPool: [],
+    itfPool: buildItfPool(),
+    itfSingles: [],
+    itfDoubles: [],
+    notifications: [],
+    eventResults: [],
     name,
     hand,
     playstyle,
+
     wealth,
     allowance: WEALTH_ALLOWANCE[wealth],
     age: 4,
@@ -1749,6 +1910,10 @@ export function createGame(name: string, hand: Hand, playstyle: Playstyle): Game
       individualWins: 0,
       individualLosses: 0,
       conferenceChampion: false,
+      nilWeekly: 0,
+      nilOffered: 0,
+      lineupSpot: 0,
+
     },
   };
   pushLog(s, `${name} picks up a racquet for the first time in Ontario, Canada.`, "good");
