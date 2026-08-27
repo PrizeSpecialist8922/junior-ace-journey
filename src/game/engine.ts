@@ -1483,11 +1483,17 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
   const restWeek = !s.playedThisWeek && alloc.tennis + alloc.fitness <= 4;
   recover(s, restWeek);
   if (!isSidelined(s)) rollInjury(s);
-  if (isSidelined(s)) {
-    // ratings drift while you cannot compete
-    s.utr = r2(clamp(s.utr - 0.012, 1, 16.5));
-  }
+  // NOTE: UTR is a permanent rating. It never resets or drains week to week —
+  // it only moves through actual match results.
   updateMental(s, s.playedThisWeek, alloc);
+
+  // your doubles partner keeps developing alongside you
+  if (s.partner) {
+    const target = s.utr + 0.35;
+    const gap = target - s.partner.utr;
+    s.partner.utr = r2(clamp(s.partner.utr + clamp(gap * 0.05, -0.01, 0.05), 1, 16.6));
+    if (s.playedThisWeek) s.partner.chemistry = clamp(s.partner.chemistry + 0.6, 0, 100);
+  }
 
   if (s.age < 10 && Math.random() < 0.75) {
     pushLog(s, CHILD_LOGS[Math.floor(Math.random() * CHILD_LOGS.length)]!, "info");
@@ -1496,7 +1502,11 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
   }
 
   evolvePool(s.ontarioPool);
+  evolvePool(s.itfPool ?? []);
   if (s.phase === "pro") evolvePool(s.atpPool);
+
+  // the rest of the province and the world actually play their events this week
+  runWorldWeek(s);
 
   if (s.week === 35) {
     const eligible =
@@ -1515,9 +1525,12 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
   s.playedThisWeek = false;
   s.week++;
 
+  scheduleNotifications(s);
+
   if (s.week === NATIONALS_WEEK - 1 && s.phase === "junior" && s.age >= 10) {
     const rank = selectionRank(s);
     s.qualifiedNationals = rank <= 16;
+    const pts = s.selection[ageBracket(s.age)] ?? 0;
     pushLog(
       s,
       s.qualifiedNationals
@@ -1525,7 +1538,15 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
         : `Selection race closed: #${rank === 999 ? "unranked" : rank} in Ontario ${ageBracket(s.age)} — missed the Top 16 cut for Junior Nationals.`,
       s.qualifiedNationals ? "good" : "bad",
     );
+    notify(
+      s,
+      "nationals",
+      s.qualifiedNationals ? "Accepted — Junior Nationals main draw" : "Not selected for Junior Nationals",
+      `Final selection standing: #${rank === 999 ? "unranked" : rank} in ${ageBracket(s.age)} with ${Math.round(pts)} selection points. Cut line is the Top 16.`,
+      s.qualifiedNationals ? "gold" : "bad",
+    );
   }
+
 
   if (s.week > 52) {
     const snapshot = {
