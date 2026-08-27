@@ -1677,9 +1677,15 @@ export function createGame(name: string, hand: Hand, playstyle: Playstyle): Game
   const s: GameState = {
     ontarioPool: buildOntarioPool(),
     atpPool: [],
+    itfPool: buildItfPool(),
+    itfSingles: [],
+    itfDoubles: [],
+    notifications: [],
+    eventResults: [],
     name,
     hand,
     playstyle,
+
     wealth,
     allowance: WEALTH_ALLOWANCE[wealth],
     age: 4,
