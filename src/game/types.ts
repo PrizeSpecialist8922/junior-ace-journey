@@ -25,10 +25,13 @@ export interface Venue {
   name: string;
   city: string;
   region: string;
+  country: string;
   surface: Surface;
   indoor: boolean;
-  travelCostTier: 1 | 2 | 3; // 1 = local GTA, 2 = Ontario/Montreal, 3 = international
+  /** 1 = local GTA, 2 = Ontario/Quebec, 3 = North America, 4 = intercontinental */
+  travelCostTier: 1 | 2 | 3 | 4;
 }
+
 
 export interface PointEntry {
   /** absolute week when earned */
