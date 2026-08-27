@@ -204,6 +204,18 @@ export interface CollegeState {
   individualWins: number;
   individualLosses: number;
   conferenceChampion: boolean;
+  /** weekly NIL money — only for elite recruits who keep performing */
+  nilWeekly: number;
+  nilOffered: number;
+  lineupSpot: number;
+}
+
+export interface LineupEntry {
+  spot: number;
+  name: string;
+  utr: number;
+  isPlayer: boolean;
+  year: string;
 }
 
 export interface BracketNode {
@@ -230,11 +242,26 @@ export interface AIPlayer {
   injuryWeeks?: number;
   peakUtr?: number;
   seasons?: number;
+  /** ITF junior circuit points (singles / doubles) */
+  itfPoints?: number;
+  itfDoublesPoints?: number;
+  country?: string;
+  /** mock season record used by the selection race */
+  seasonWins?: number;
+  seasonLosses?: number;
 }
 
 export interface GameState {
   ontarioPool: AIPlayer[];
   atpPool: AIPlayer[];
+  /** world ITF junior circuit field */
+  itfPool: AIPlayer[];
+  /** ITF junior ranking points, singles and doubles */
+  itfSingles: PointEntry[];
+  itfDoubles: PointEntry[];
+  notifications: Notification[];
+  eventResults: EventResult[];
+
   name: string;
   hand: Hand;
   playstyle: Playstyle;
