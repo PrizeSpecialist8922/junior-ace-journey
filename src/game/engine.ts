@@ -1374,13 +1374,42 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
   const now = absWeek(s);
   s.rogers = pruneExpired(s.rogers, now);
   s.atp = pruneExpired(s.atp, now);
+  s.itfSingles = pruneExpired(s.itfSingles ?? [], now);
+  s.itfDoubles = pruneExpired(s.itfDoubles ?? [], now);
+  s.notifications ??= [];
+  s.eventResults ??= [];
 
   // income & expenses
-  if (!s.sponsor && s.age <= 18) s.bank += s.allowance;
+  if (!s.sponsor && s.age <= 18 && s.phase !== "college") s.bank += s.allowance;
   if (s.sponsor) s.bank += s.sponsor.weekly;
-  const cost = weeklyStaffCost(s);
+  // in college the athletic department covers coaching, travel and training
+  const inCollege = s.phase === "college";
+  if (inCollege) {
+    const nil = nilStatus(s);
+    if (nil.eligible && s.college.nilWeekly !== nil.weekly) {
+      s.college.nilWeekly = nil.weekly;
+      notify(
+        s,
+        "nil",
+        "NIL deal activated",
+        `${s.college.school} boosters signed you to $${nil.weekly.toLocaleString()}/week in NIL money. Keep the lineup spot, the results and the GPA or it is pulled.`,
+        "gold",
+      );
+    } else if (!nil.eligible && s.college.nilWeekly > 0) {
+      s.college.nilWeekly = 0;
+      notify(
+        s,
+        "nil",
+        "NIL deal suspended",
+        `You no longer meet every NIL condition (${nil.met}/6 met). The money stops until you do.`,
+        "bad",
+      );
+    }
+    s.bank += s.college.nilWeekly;
+  }
+  const cost = inCollege ? 0 : weeklyStaffCost(s);
   s.bank -= cost;
-  if (s.bank < 0) {
+  if (s.bank < 0 && !inCollege) {
     const dropped = s.staff.pop();
     if (dropped) {
       s.bank += dropped.weekly;
@@ -1392,6 +1421,7 @@ export function nextWeek(s: GameState, alloc: { tennis: number; fitness: number;
     }
     s.bank = Math.max(0, s.bank);
   }
+
 
   // training
   const cm = staffMultiplier(s, "Private Coach");
