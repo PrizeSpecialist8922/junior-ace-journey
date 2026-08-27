@@ -1755,6 +1755,10 @@ export function createGame(name: string, hand: Hand, playstyle: Playstyle): Game
       individualWins: 0,
       individualLosses: 0,
       conferenceChampion: false,
+      nilWeekly: 0,
+      nilOffered: 0,
+      lineupSpot: 0,
+
     },
   };
   pushLog(s, `${name} picks up a racquet for the first time in Ontario, Canada.`, "good");
